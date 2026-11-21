@@ -46,11 +46,20 @@ namespace CatchTheTroublemaker
             }
             Instance = this;
 
-            // The scene builder wires these; the fallbacks keep manual scene setup friendly.
-            if (network == null) network = GetComponentInChildren<NetworkManager>(true);
-            if (ui == null) ui = GetComponentInChildren<UIManager>(true);
-            if (board == null) board = GetComponentInChildren<BoardRenderer>(true);
-            if (playerInput == null) playerInput = GetComponentInChildren<PlayerController>(true);
+            // The scene builder wires these. Manual setups may place managers as
+            // siblings instead of children, so search the whole scene as a fallback.
+            if (network == null) network = FindFirstObjectByType<NetworkManager>(FindObjectsInactive.Include);
+            if (ui == null) ui = FindFirstObjectByType<UIManager>(FindObjectsInactive.Include);
+            if (board == null) board = FindFirstObjectByType<BoardRenderer>(FindObjectsInactive.Include);
+            if (playerInput == null) playerInput = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+            if (network == null || ui == null || board == null || playerInput == null)
+            {
+                Debug.LogError("[CTT] GameManager is missing one or more manager references " +
+                               "(network, ui, board, playerInput). Check the scene Inspector.");
+                enabled = false;
+                return;
+            }
 
             Catalan = PlayerPrefs.GetInt(LangKey, 0) == 1;
             HighContrast = PlayerPrefs.GetInt(ContrastKey, 0) == 1;

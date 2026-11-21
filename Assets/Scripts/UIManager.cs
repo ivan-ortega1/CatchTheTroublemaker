@@ -35,14 +35,24 @@ namespace CatchTheTroublemaker
         private readonly Button[] roleButtons = new Button[6];
         private Button startButton;
 
-        private void Awake() => Build();
+        private void Awake() => EnsureBuilt();
 
         public void Initialize(GameManager manager)
         {
             game = manager;
+
+            // GameManager.Awake() may run before this component's Awake() when the
+            // managers live on separate scene objects, so never assume Build() ran.
+            EnsureBuilt();
             serverField.text = CTTApi.ServerUrl;
             if (game.Catalan || game.HighContrast)
                 Refresh(game.Catalan, game.HighContrast, null, null, null, null, GamePhase.Home);
+        }
+
+        private void EnsureBuilt()
+        {
+            if (canvas != null && serverField != null && homePanel != null) return;
+            Build();
         }
 
         private void ApplyServer()
@@ -260,6 +270,7 @@ namespace CatchTheTroublemaker
 
         public void ShowPhase(GamePhase target)
         {
+            EnsureBuilt();
             phase = target;
             homePanel.gameObject.SetActive(target == GamePhase.Home);
             lobbyPanel.gameObject.SetActive(target == GamePhase.Lobby);
@@ -275,13 +286,15 @@ namespace CatchTheTroublemaker
 
         public void Toast(string message)
         {
-            if (toast != null) toast.text = message ?? "";
+            if (toast == null) return;
+            toast.text = message ?? "";
             if (homeStatus != null && phase == GamePhase.Home) homeStatus.text = message ?? "";
         }
 
         public void RenderLobby(CTTLobby lobby, string playerId)
         {
             if (lobby == null) return;
+            EnsureBuilt();
             bool ca = game != null && game.Catalan;
             lobbyCode.text = CTTConfig.Tr("roomCode", ca) + ": " + lobby.code;
             int humans = lobby.players != null ? lobby.players.Length : 0;
@@ -310,6 +323,7 @@ namespace CatchTheTroublemaker
         public void UpdateHud(CTTState snapshot, string playerId)
         {
             if (snapshot == null) return;
+            EnsureBuilt();
             bool ca = game != null && game.Catalan;
 
             int seconds = Mathf.Max(0, Mathf.CeilToInt(snapshot.remainingMs / 1000f));
@@ -348,6 +362,7 @@ namespace CatchTheTroublemaker
 
         public void ShowResult(CTTResult result)
         {
+            EnsureBuilt();
             bool ca = game != null && game.Catalan;
             resultTitle.text = result != null && result.winnerTeam == "troublemakers"
                 ? CTTConfig.Tr("kidsWin", ca) : CTTConfig.Tr("parentsWin", ca);

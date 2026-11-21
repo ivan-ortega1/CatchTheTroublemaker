@@ -64,18 +64,18 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.6.9f1\Editor\Data\BCLExtensions\TargetingPacks\netstandard2.1\analyzers\dotnet\roslyn4.0\cs\System.Text.Json.SourceGeneration.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTHoldButton.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTData.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\BoardRenderer.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\NetworkManager.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTConfig.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\UIManager.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTUI.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTSseClient.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\GameManager.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTDraw.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\PlayerController.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTApi.cs" />
+    <Compile Include="Assets\Scripts\NetworkManager.cs" />
+    <Compile Include="Assets\Scripts\CTTDraw.cs" />
+    <Compile Include="Assets\Scripts\PlayerController.cs" />
+    <Compile Include="Assets\Scripts\UIManager.cs" />
+    <Compile Include="Assets\Scripts\CTTHoldButton.cs" />
+    <Compile Include="Assets\Scripts\CTTSseClient.cs" />
+    <Compile Include="Assets\Scripts\BoardRenderer.cs" />
+    <Compile Include="Assets\Scripts\CTTApi.cs" />
+    <Compile Include="Assets\Scripts\CTTData.cs" />
+    <Compile Include="Assets\Scripts\GameManager.cs" />
+    <Compile Include="Assets\Scripts\CTTConfig.cs" />
+    <Compile Include="Assets\Scripts\CTTUI.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

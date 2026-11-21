@@ -29,8 +29,15 @@ namespace CatchTheTroublemaker
         private void Awake()
         {
             api = GetComponent<CTTApi>();
+            if (api == null) api = gameObject.AddComponent<CTTApi>();
             sse = GetComponent<CttSseClient>();
+            if (sse == null) sse = gameObject.AddComponent<CttSseClient>();
         }
+
+        // Defensive accessors: a manual scene may attach NetworkManager on its own,
+        // so never assume Awake() already supplied these component references.
+        private CTTApi Api => api != null ? api : (api = GetComponent<CTTApi>() ?? gameObject.AddComponent<CTTApi>());
+        private CttSseClient Sse => sse != null ? sse : (sse = GetComponent<CttSseClient>() ?? gameObject.AddComponent<CttSseClient>());
 
         /// <summary>Start listening to a room. Idempotent for the same room.</summary>
         public void SetRoom(string code, string id)
@@ -40,14 +47,13 @@ namespace CatchTheTroublemaker
 
             roomCode = code;
             playerId = id;
-            if (sse == null) sse = gameObject.AddComponent<CttSseClient>();
-            sse.Connect(code, id, OnStreamEvent);
+            Sse.Connect(code, id, OnStreamEvent);
             if (pollRunner == null) pollRunner = StartCoroutine(Poll());
         }
 
         public void Stop()
         {
-            if (sse != null) sse.Stop();
+            if (sse != null) sse.Stop();  // no-op when the component was never created
             if (pollRunner != null)
             {
                 StopCoroutine(pollRunner);
@@ -63,14 +69,14 @@ namespace CatchTheTroublemaker
 
         public void CreateRoom(string name, Action<CTTRoomResponse> ok, Action<string> fail)
         {
-            api.Post("/api/rooms", new CTTNameRequest { name = name },
+            Api.Post("/api/rooms", new CTTNameRequest { name = name },
                 json => Parse(json, ok, fail), fail);
         }
 
         public void Join(string code, string name, string returningId,
             Action<CTTRoomResponse> ok, Action<string> fail)
         {
-            api.Post("/api/rooms/" + code + "/join",
+            Api.Post("/api/rooms/" + code + "/join",
                 new CTTJoinRequest { name = name, playerId = returningId },
                 json => Parse(json, ok, fail), fail);
         }
@@ -78,7 +84,7 @@ namespace CatchTheTroublemaker
         public void SetRole(string code, string id, string role,
             Action<CTTLobbyResponse> ok, Action<string> fail)
         {
-            api.Post("/api/rooms/" + code + "/role",
+            Api.Post("/api/rooms/" + code + "/role",
                 new CTTRoleRequest { playerId = id, role = role },
                 json =>
                 {
@@ -95,7 +101,7 @@ namespace CatchTheTroublemaker
         public void PostMatchAction(string code, string id, string action,
             Action<CTTOkResponse> ok, Action<string> fail)
         {
-            api.Post("/api/rooms/" + code + action, new CTTStartRequest { playerId = id },
+            Api.Post("/api/rooms/" + code + action, new CTTStartRequest { playerId = id },
                 json =>
                 {
                     var response = JsonUtility.FromJson<CTTOkResponse>(json);
@@ -110,7 +116,7 @@ namespace CatchTheTroublemaker
 
         public void SendInput(string code, string id, int dx, int dy, bool sprint)
         {
-            api.Post("/api/rooms/" + code + "/input",
+            Api.Post("/api/rooms/" + code + "/input",
                 new CTTInputRequest { playerId = id, dx = dx, dy = dy, sprint = sprint },
                 _ => { }, _ => { });
         }
@@ -118,7 +124,7 @@ namespace CatchTheTroublemaker
         public void RefreshState()
         {
             if (string.IsNullOrEmpty(roomCode)) return;
-            api.Get("/api/rooms/" + roomCode + "/state", json =>
+            Api.Get("/api/rooms/" + roomCode + "/state", json =>
             {
                 var snapshot = JsonUtility.FromJson<CTTState>(json);
                 if (snapshot != null) StateReceived?.Invoke(snapshot);
