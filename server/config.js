@@ -17,7 +17,8 @@ export const CONFIG = {
   coinRespawnMs: 1400,
 
   // 6 minutes: long enough for a comeback, short enough for a class demo.
-  gameDurationMs: 6 * 60 * 1000,
+  // Override with GAME_DURATION_MS for a quick match / automated checks.
+  gameDurationMs: Number(process.env.GAME_DURATION_MS) || 6 * 60 * 1000,
 
   tickMs: 50,          // server simulation: 20 Hz
   stateHz: 15,         // snapshots pushed to clients: 15 Hz

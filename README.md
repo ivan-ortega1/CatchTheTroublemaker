@@ -13,7 +13,7 @@ node server/index.js
 # then open http://localhost:3000
 ```
 
-Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/index.js`.
+Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/index.js`. For a quick demo match, `GAME_DURATION_MS=15000 node server/index.js`.
 
 1. **Create a room.** The creator is the *host* (game master).
 2. **Share the 5-letter code.** Each player opens the URL and joins with that code.

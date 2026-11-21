@@ -161,6 +161,10 @@ als pares si cap nen arriba a la meta.
   3. Partida iniciada: HUD `0/50 monedes · 3 vides`, temporitzador `5:59`, canvas dibuixant.
   4. Després d'uns segons: `scoreA = 1`, `lives = 2` i 2 *toasts* → una moneda recollida i una captura
      vàlida, sense errors a la consola.
+- Prova de l'endpoint final amb `GAME_DURATION_MS=2000`: la partida va acabar per temps
+  i `GET /api/rooms/<cod>/result` va retornar `winnerTeam: "parents"`, `reason`,
+  `stats` (7 monedes, 2 confiscades) i `standings` dels 6 jugadors. La pantalla de
+  resultat es va mostrar correctament.
 - Els resultats guardats s'escriuen a `data/matches.jsonl` (append-only), per si es volen
   recuperar partides.
 
