@@ -123,6 +123,8 @@ namespace CatchTheTroublemaker
             { "lang", new[] { "CA / EN", "EN / CA" } },
             { "contrast", new[] { "HIGH CONTRAST", "ALT CONTRAST" } },
             { "invalidCode", new[] { "A room code has 5 characters.", "Un codi de sala té 5 caràcters." } },
+            { "reconnecting", new[] { "Reconnecting…", "Reconnectant…" } },
+            { "connectionError", new[] { "Connection error", "Error de connexió" } },
         };
 
         public static string Tr(string key, bool catalan)

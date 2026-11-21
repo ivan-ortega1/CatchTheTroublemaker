@@ -141,6 +141,7 @@ als pares si cap nen arriba a la meta.
 | 12 | Unity no podia obrir el projecte en mode batch perquè l'editor ja estava obert amb el mateix projecte. | Bloqueig d'instància d'Unity. | Es va copiar el projecte a una carpeta temporal per compilar-lo sense tocar l'editor de l'usuari; a més es va verificar amb el `csc` d'Unity. |
 | 13 | Errors de compilació C# en la primera passada. | `CttApi` vs `CTTApi`, paràmetre `size` duplicat, `Screen` (enum) enfront de `UnityEngine.Screen`, mètode estàtic que feia servir un camp d'instància. | Corregits i recompilats fins a 0 errors. |
 | 14 | El primer *patch* de presència (`room.seen`) no funcionava: tots els jugadors es convertien en bots en iniciar. | `syncPresence()` només es cridava a `start`/`restart`, abans que arribés cap input; després ja no es tornava a cridar. | Cridar-ho al *tick loop* (20 Hz) i a `/input`, i donar una finestra de gràcia inicial a cada jugador. Prova de regressió afegida → 15/15 tests. |
+| 15 | L'usuari va demanar **"un joc 2D normal de Unity, amb un GameManager"**, no un *bootstrap* de codi. | El primer client Unity creava càmera, UI i escena en temps d'execució (`RuntimeInitializeOnLoadMethod`), sense res a la Hierarchy. | Es va dividir `CTTGame` en `GameManager` + `NetworkManager`, `UIManager`, `BoardRenderer` i `PlayerController`; es va afegir un Editor script que escriu l'escena amb el `GameManager` i els seus fills; i es va passar el mapa i els jugadors a `SpriteRenderer` en espai de món amb càmera ortogràfica que segueix el jugador local. |
 
 ### Què va funcionar a la primera
 
@@ -213,7 +214,7 @@ com a **backend autoritatiu** i Unity es converteix en un client més.
 | --- | --- |
 | "Fes-ho amb el Unity Universal 2D Project" | Es va inspeccionar `ProjectVersion.txt` (6000.6.9f1), `manifest.json` (Input System 1.20.1, uGUI 2.6.0, URP 17.6.0) i `ProjectSettings.asset` (`activeInputHandler: 1`, és a dir, **només Input System**). |
 | "El projecte que he creat jo" | No es va sobreescriure res de la plantilla: es va crear `Assets/CatchTheTroublemaker/` amb 9 scripts C# i el seu README. |
-| "Ha de ser jugable" | `CttBootstrap` ho crea tot en temps d'execució (càmera, EventSystem, UI), així que només cal obrir `SampleScene` i prémer Play. |
+| "Ha de ser jugable" | Primer es va fer amb `CttBootstrap` (tot en temps d'execució); després, a petició de l'usuari, es va refactoritzar a un `GameManager` **a l'escena** amb managers fills. Veure §12. |
 | "Sense dependències noves" | Tota l'art és procedural (`Texture2D.SetPixels32`): monedes, parets, mapa i formes ■ ▲ ★. No cal importar sprites. |
 | "Comunicació asíncrona també a Unity" | `DownloadHandlerScript` propi que llegeix l'SSE del servidor i encua els esdeveniments per al *main thread*; sondeig `/state` com a *fallback*. |
 | "Que es pugui jugar entre màquines" | Camp *Server URL* a la pantalla inicial; es desa a `PlayerPrefs`. Un jugador Unity pot jugar contra un de navegador. |
@@ -224,7 +225,7 @@ com a **backend autoritatiu** i Unity es converteix en un client més.
 | --- | --- | --- |
 | UI construïda per codi (uGUI) | Zero *drag & drop* a l'inspector; qualsevol escena serveix. | Prefabs i canvas muntats a mà (fràgil i lent de documentar). |
 | Input System (no `UnityEngine.Input`) | El projecte té `activeInputHandler: 1`; la API antiga dóna errors. | Activar *Both* i fer servir la API clàssica. |
-| `RuntimeInitializeOnLoadMethod` | L'editor no cal que reimporti escenes noves. | Afegir manualment un GameObject a `SampleScene`. |
+| `RuntimeInitializeOnLoadMethod` (fase inicial) | L'editor no cal que reimporti escenes noves. | Afegir manualment un GameObject a `SampleScene` — **aquesta és la decisió que es va corregir a la §12** perquè l'usuari volia un joc Unity convencional. |
 | SSE amb `DownloadHandlerScript` | `EventSource` no existeix a Unity; cal llegir el flux `text/event-stream` a trossos. | Fer només *polling* (funciona, però menys "asíncron" i menys immediat). |
 | `PlayerPrefs` per a codi i `playerId` | Reconnectar després de recarregar l'escena és trivial. | Demanar sempre el codi a mà. |
 | DTOs separats (`CTTData.cs`) | `JsonUtility` no pot deserialitzar arrays al nivell arrel; es va adaptar l'estructura a objectes. | `SimpleJSON` / Newtonsoft (dependència extra). |
@@ -257,3 +258,52 @@ demostrar que els dos humans es convertien en bots a `tick 0` i no es recuperave
 l'inici (i al reinici). Amb això, un client que només sondeja `/state` es manté humà
 mentre enviï intencions, i torna a ser bot automàticament si deixa de fer-ho durant
 10 s. És un canvi de robustesa que també beneficia el client web.
+
+---
+
+## 12. Tercera fase: joc Unity 2D convencional amb `GameManager`
+
+L'usuari va revisar la segona entrega i va dir:
+
+> "Try again, make it following a normal 2D unity game, with a Game manager".
+
+**Directriu interpretada:** el client havia de semblar un projecte Unity de veritat:
+un `GameManager` a la Hierarchy, objectes al món 2D i una càmera que segueix el
+jugador — no una interfície muntada per codi en un objecte buit. Quan se li va
+preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
+
+### Prompt / restriccions → resposta de l'agent
+
+| Directriu | Resposta de l'agent |
+| --- | --- |
+| "Un joc 2D normal amb Game manager" | Es va crear `GameManager.cs` (MonoBehaviour, singleton) amb la màquina d'estats `Home → Lobby → Playing → Result` i referències públiques als altres managers. |
+| "No només codi en temps d'execució" | Es va eliminar `CTTBootstrap.cs` i es va afegir `Editor/CTTSceneSetup.cs`, que escriu l'escena `SampleScene.unity` amb `GameManager` → `Network / UI / World / Input`, `Main Camera` ortogràfica i `EventSystem` amb `InputSystemUIInputModule`. |
+| "Món 2D" | `BoardRenderer.cs` dibuixa el mapa com **una sola sprite** generada amb `Texture2D.SetPixels32` (16 px per casella) i monedes/jugadors com a `SpriteRenderer` separats. La càmera segueix el jugador local amb *smoothing* i retalla els límits del mapa. |
+| "Que segueixi sent autoritatiu" | `PlayerController.cs` només llegeix `WASD` / teclat Input System i el *D-pad* tàctil; `GameManager.Update()` envia `{dx, dy, sprint}` cada 100 ms. Cap posició es decideix al client. |
+| "No trencar el que ja funcionava" | El servidor Node, el web client, els DTO i el transport SSE/polling es van conservar. El canvi és només al client Unity i a l'escena. |
+
+### Decisions tècniques d'aquesta refactorització
+
+| Decisió | Per què | Alternativa descartada |
+| --- | --- | --- |
+| Un `GameManager` coordinator + managers especialitzats | `CTTGame.cs` tenia ~600 línies barrejant xarxa, UI i render; ara cada fitxer té una sola responsabilitat i es pot provar per separat. | Un únic `GameManager` enorme (el problema original). |
+| Esdeveniments C# (`Action<...>`) de `NetworkManager` → `GameManager` | Desacopla el transport de la lògica de pantalla; `UIManager` no sap res de HTTP. | Crides directes a UI des de les callbacks HTTP. |
+| Editor script + escena desada | L'usuari veu els objectes a la Hierarchy i pot ajustar valors a l'Inspector (`cameraSize`, `pollInterval`, `SendInterval`). | Tornar a crear-ho tot a `Awake()`. |
+| Còpia temporal del projecte per executar l'editor en *batch* | L'editor de l'usuari estava obert amb el mateix projecte i Unity bloqueja una segona instància. | Tancar l'editor de l'usuari (no acceptable). |
+| `SpriteRenderer` en espai de món | És el que s'espera d'un joc 2D: càmera, profunditat (sorting orders) i objectes que es poden inspeccionar. | Dibuixar el mapa en un `RawImage` de canvas (fase anterior). |
+
+### Resultat i verificació
+
+- `GameManager`, `NetworkManager`, `UIManager`, `BoardRenderer`, `PlayerController` i
+  `Editor/CTTSceneSetup.cs` compilen amb **0 errors** amb el Roslyn d'Unity 6 i amb la
+  compilació real de l'editor (es va regenerar `Assembly-CSharp.dll`).
+- L'scene setup en *batch mode* va escriure `SampleScene.unity` (1496 línies) amb
+  totes les referències serialitzades (`network`, `ui`, `board`, `playerInput`) i sense
+  errors de compilació al log. Aquesta escena es va copiar al projecte original.
+- `npm test` → **15/15** (cap canvi al servidor en aquesta fase).
+- Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
+  el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
+  `GET /api/rooms/<cod>/result` respon correctament.
+- La documentació del client (`Assets/CatchTheTroublemaker/README.md`) s'ha reescrit
+  per explicar la nova estructura i la comanda **Tools > Catch the Troublemaker >
+  Setup Scene** per si cal refer l'escena.

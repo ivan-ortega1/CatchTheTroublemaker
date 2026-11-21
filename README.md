@@ -22,7 +22,7 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 ### Play in Unity
 
 1. Open this folder in Unity 6000.6.9f1 (the Universal 2D template).
-2. Open `Assets/Scenes/SampleScene.unity` and press **Play**. No scene wiring is needed: `CttBootstrap` creates the camera, EventSystem and UI at runtime.
+2. Open `Assets/Scenes/SampleScene.unity` and press **Play**. The scene already contains a **`GameManager`** object with `Network`, `UI`, `World` and `Input` children, an orthographic follow camera and an `EventSystem` — it is a conventional Unity scene, not a runtime bootstrap. (Use **Tools > Catch the Troublemaker > Setup Scene** to recreate that wiring.)
 3. The home screen has a **Server URL** field (default `http://localhost:3000`). Change it to your machine's LAN IP (e.g. `http://192.168.1.20:3000`) when playing from another computer.
 4. Create a room or join with the 5-letter code, pick a role, and let the host start.
 
@@ -95,6 +95,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
                                       • pure module → unit-testable
 ```
 
+- **Unity client structure:** `GameManager` owns the Home → Lobby → Playing → Result state machine. `NetworkManager` handles REST/SSE/polling, `UIManager` the uGUI overlay, `BoardRenderer` the **world-space 2D** sprites and follow camera, and `PlayerController` the Input System intent. Only intent is sent; positions never are.
 - **Client → server:** small `POST /api/rooms/:code/input` messages carrying only `{dx, dy, sprint}`.
 - **Server → client:** Server-Sent Events stream `hello`, `lobby`, `start`, `state` and `result`. Browsers use `EventSource`; Unity parses the same stream with a custom `DownloadHandlerScript`. Both also poll `/state` as a fallback.
 - **Authority:** neither client decides coins, catches or the winner. Both only draw snapshots.
@@ -107,7 +108,8 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | `server/index.js` | HTTP routes, SSE, room lifecycle, match persistence |
 | `server/engine.js` | Deterministic map generation, movement, rules, bots, snapshots |
 | `server/config.js` | All balance constants and role metadata |
-| `Assets/CatchTheTroublemaker/Scripts/*.cs` | Unity 2D client: bootstrap, HTTP/SSE transport, JSON DTOs, procedural art, uGUI screens and input |
+| `Assets/CatchTheTroublemaker/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, JSON DTOs, procedural art and uGUI screens |
+| `Assets/CatchTheTroublemaker/Editor/CTTSceneSetup.cs` | Editor command that builds/wires the `GameManager` scene hierarchy |
 | `public/index.html` | Four screens: home, lobby, game, result |
 | `public/styles.css` | Responsive dark UI, high-contrast and reduced-motion support |
 | `public/app.js` | i18n (CA/EN), canvas renderer, input, SSE client |

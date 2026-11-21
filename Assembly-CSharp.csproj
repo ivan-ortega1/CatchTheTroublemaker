@@ -65,14 +65,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTHoldButton.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTBootstrap.cs" />
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTData.cs" />
+    <Compile Include="Assets\CatchTheTroublemaker\Scripts\BoardRenderer.cs" />
+    <Compile Include="Assets\CatchTheTroublemaker\Scripts\NetworkManager.cs" />
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTConfig.cs" />
+    <Compile Include="Assets\CatchTheTroublemaker\Scripts\UIManager.cs" />
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTUI.cs" />
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTSseClient.cs" />
+    <Compile Include="Assets\CatchTheTroublemaker\Scripts\GameManager.cs" />
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTDraw.cs" />
+    <Compile Include="Assets\CatchTheTroublemaker\Scripts\PlayerController.cs" />
     <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTApi.cs" />
-    <Compile Include="Assets\CatchTheTroublemaker\Scripts\CTTGame.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

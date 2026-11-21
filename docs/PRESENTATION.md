@@ -34,8 +34,10 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
   `Unity / Navegador → POST /input → Servidor (20 Hz) → Motor → snapshots SSE → Unity / Navegador`
 - **Servidor autoritatiu:** el client només envia intenció; no decideix res.
 - Motor pur (`engine.js`) → testejable sense HTTP.
-- **Client Unity:** `CttBootstrap` crea càmera, EventSystem i UI en temps d'execució;
-  `DownloadHandlerScript` llegeix el mateix flux SSE que `EventSource` al navegador.
+- **Client Unity:** `GameManager` a l'escena coordina `NetworkManager`, `UIManager`,
+  `BoardRenderer` i `PlayerController`. El món és 2D de veritat: mapa i actors són
+  `SpriteRenderer` i la càmera ortogràfica segueix el jugador. `DownloadHandlerScript`
+  llegeix el mateix flux SSE que `EventSource` al navegador.
 
 ### 5. El joc en acció (demo, 3 min)
 1. `node server/index.js`.
@@ -66,6 +68,8 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
 - **Pregunta prèvia:** quina tecnologia? → l'usuari va triar Web + Node.
 - **Segon prompt:** "fes-ho amb el Unity Universal 2D Project" → es va afegir el client Unity
   conservant el servidor Node com a backend (l'enunciat demana endpoint i multi-màquina).
+- **Tercer prompt:** "un joc 2D normal de Unity, amb un GameManager" → es va refactoritzar
+  el client en managers especialitzats i es va muntar l'escena a la Hierarchy.
 - No es va copiar la primera resposta: es van investigar SSE, BFS, PRNG i `node --test`.
 
 ### 9. Iteracions (1 min) — "què va fallar"
@@ -79,11 +83,14 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
   → 0 errors de compilació amb el Roslyn d'Unity.
 - Presència del servidor: sense SSE un client Unity es convertia en bot → `room.seen`,
   recalculat al *tick loop* i a `/input`, amb finestra de gràcia a l'inici.
+- Primer client Unity només codi (`CttBootstrap`) → l'usuari va demanar un joc 2D normal
+  amb `GameManager` → es va dividir en managers i es va escriure l'escena amb un Editor script.
 
 ### 10. Verificació i lliçons (45 s)
 - **15/15 tests** (`npm test`): regles + API + presència sense SSE.
 - Prova al navegador: sala, rol, start, moneda, captura, sense errors de consola.
-- Scripts Unity compilats amb 0 errors i importats per Unity 6 (9 fitxers `.meta` generats).
+- Scripts Unity compilats amb 0 errors i importats per Unity 6; l'escena `SampleScene`
+  conté el `GameManager` amb els seus quatre fills i referències serialitzades.
 - Lliçó: preguntar abans, separar motor de transport, provar l'equilibri, documentar sobre la marxa, fer servir Git.
 
 ### Preguntes probables
