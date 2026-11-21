@@ -2,7 +2,12 @@
 
 A hyper-casual **multiplayer** game for 2–6 players on different machines. Two families share one randomly generated map: parents chase their own child, troublemakers collect coins and try to escape.
 
-Built with **plain Node.js + browser APIs** — no npm dependencies, no build step.
+Two clients share the same authoritative Node.js backend:
+
+- **Unity Universal 2D client** — the project in this folder (`Assets/CatchTheTroublemaker`).
+- **Browser client** — a dependency-free HTML5 fallback in `public/`.
+
+The server has **no npm dependencies** and no build step.
 
 ---
 
@@ -10,10 +15,22 @@ Built with **plain Node.js + browser APIs** — no npm dependencies, no build st
 
 ```bash
 node server/index.js
-# then open http://localhost:3000
 ```
 
 Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/index.js`. For a quick demo match, `GAME_DURATION_MS=15000 node server/index.js`.
+
+### Play in Unity
+
+1. Open this folder in Unity 6000.6.9f1 (the Universal 2D template).
+2. Open `Assets/Scenes/SampleScene.unity` and press **Play**. No scene wiring is needed: `CttBootstrap` creates the camera, EventSystem and UI at runtime.
+3. The home screen has a **Server URL** field (default `http://localhost:3000`). Change it to your machine's LAN IP (e.g. `http://192.168.1.20:3000`) when playing from another computer.
+4. Create a room or join with the 5-letter code, pick a role, and let the host start.
+
+All artwork (coins, walls, ■ ▲ ★ player shapes and the map texture) is generated procedurally at runtime — no image assets to import.
+
+### Play in a browser
+
+Open `http://localhost:3000` (or `http://<server-ip>:3000`).
 
 1. **Create a room.** The creator is the *host* (game master).
 2. **Share the 5-letter code.** Each player opens the URL and joins with that code.
@@ -28,7 +45,9 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 | Sprint | `Space` or `Shift` | SPRINT button |
 | Change language | top-right `CA / EN` | same |
 | High contrast | top-right `High contrast` | same |
-| Text size | `A−` / `A+` | same |
+| Text size (browser only) | `A−` / `A+` | same |
+
+Both clients enforce the same rule: only your own parents can catch you. The Unity client has a LAN server field so it can play against browser players on other machines.
 
 ---
 
@@ -65,20 +84,21 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 ## Architecture
 
 ```
- Browser A ──┐                ┌── HTTP REST ── create / join / role / start / input / result
- Browser B ──┼── async ──────▶│  Node.js server (server/index.js)
- Browser C ──┘                │   • rooms & host control
-                              │   • authoritative 20 Hz simulation loop
-                              │   • SSE broadcaster (15 Hz snapshots)
-                              └──▶ Match engine (server/engine.js)
-                                     • seeded random map + BFS pathfinding (bots)
-                                     • collision, coins, catch rule, win detection
-                                     • pure module → unit-testable
+ Unity player ─┐                ┌── HTTP REST ── create / join / role / start / input / result
+ Browser player┼── async ──────▶│  Node.js server (server/index.js)
+ Unity player ─┘                │   • rooms & host control
+                               │   • authoritative 20 Hz simulation loop
+                               │   • SSE broadcaster (15 Hz snapshots)
+                               └──▶ Match engine (server/engine.js)
+                                      • seeded random map + BFS pathfinding (bots)
+                                      • collision, coins, catch rule, win detection
+                                      • pure module → unit-testable
 ```
 
 - **Client → server:** small `POST /api/rooms/:code/input` messages carrying only `{dx, dy, sprint}`.
-- **Server → client:** `EventSource` (Server-Sent Events) streams `hello`, `lobby`, `start`, `state` and `result`. If SSE fails, the client falls back to 250 ms HTTP polling, so the game keeps working.
-- **Authority:** the client never decides coins, catches or the winner. It only draws snapshots.
+- **Server → client:** Server-Sent Events stream `hello`, `lobby`, `start`, `state` and `result`. Browsers use `EventSource`; Unity parses the same stream with a custom `DownloadHandlerScript`. Both also poll `/state` as a fallback.
+- **Authority:** neither client decides coins, catches or the winner. Both only draw snapshots.
+- **Mixed matches:** a Unity player can play against a browser player — they are just HTTP clients of the same room.
 
 ### Files
 
@@ -87,6 +107,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | `server/index.js` | HTTP routes, SSE, room lifecycle, match persistence |
 | `server/engine.js` | Deterministic map generation, movement, rules, bots, snapshots |
 | `server/config.js` | All balance constants and role metadata |
+| `Assets/CatchTheTroublemaker/Scripts/*.cs` | Unity 2D client: bootstrap, HTTP/SSE transport, JSON DTOs, procedural art, uGUI screens and input |
 | `public/index.html` | Four screens: home, lobby, game, result |
 | `public/styles.css` | Responsive dark UI, high-contrast and reduced-motion support |
 | `public/app.js` | i18n (CA/EN), canvas renderer, input, SSE client |
@@ -136,7 +157,7 @@ Example result:
 ## Verification
 
 ```bash
-npm test          # 14 tests: engine rules + HTTP API
+npm test          # 15 tests: engine rules + HTTP API + no-SSE presence
 ```
 
 A browser smoke test was also performed: a room was created, a role chosen, the match started, the SSE stream delivered state, a coin was collected and a valid catch fired (see `docs/AI_PROCESS.md`).
@@ -145,14 +166,14 @@ A browser smoke test was also performed: a room was created, a role chosen, the 
 
 | Requirement | Implementation |
 | --- | --- |
-| More than one player, each on their own machine | Browser clients around one Node server |
+| More than one player, each on their own machine | Unity and browser clients around one Node server |
 | Lobby / master | Waiting room + host-only start/restart |
 | Random board with spawn points | Seeded map generation, four corner spawns, BFS connectivity |
 | Shared goal | 50 coins, 132 on the map with respawn |
 | Asynchronous communication | Server-Sent Events + input POSTs, polling fallback |
 | Endpoint returning the winner | `GET /api/rooms/:code/result` |
-| Aesthetics / usability / accessibility | Canvas UI, CA/EN, keyboard + touch, ARIA live toasts, high contrast, text sizing, shape+colour coding, reduced motion |
+| Aesthetics / usability / accessibility | Procedural uGUI + canvas UI, CA/EN, keyboard + touch, ARIA live toasts (browser), high contrast, text sizing (browser), shape+colour coding, reduced motion (browser) |
 | Developed with AI agents and documented | This repository + `docs/AI_PROCESS.md` + `docs/PRESENTATION.md` |
 | Git | Repository initialised; commits at each milestone |
 
-The original Unity 2D template is left untouched; this project is served from `public/` and `server/`.
+The original Universal 2D template structure (`Assets/Scenes`, `Settings`, `Packages`) is preserved; the game is added under `Assets/CatchTheTroublemaker/` alongside `public/` and `server/`.

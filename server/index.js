@@ -143,8 +143,10 @@ function syncPresence(room) {
   const active = new Set([...streamSet(room)].map((c) => c.playerId));
   for (const p of room.match.players) {
     if (p.id.startsWith('bot-')) continue;
-    p.connected = active.has(p.id);
-    p.isBot = !active.has(p.id);
+    const seenAt = room.seen?.get(p.id) || 0;
+    const recentInput = Date.now() - seenAt < 10000;
+    p.connected = active.has(p.id) || recentInput;
+    p.isBot = !p.connected;
   }
 }
 
@@ -169,6 +171,7 @@ function openStream(room, playerId, req, res) {
   res.write(`retry: 2000\n\n`);
 
   const client = { playerId, res };
+  room.seen.set(playerId, Date.now());
   const set = streamSet(room);
   const wasFirst = [...set].every((c) => c.playerId !== playerId);
   set.add(client);
@@ -237,6 +240,7 @@ async function handleApi(req, res, parts, url) {
       createdAt: Date.now(),
       lastBroadcast: 0,
       persisted: false,
+      seen: new Map(), // last input/stream time per player (Unity can play without SSE)
     };
     rooms.set(roomCode, room);
     sendJSON(res, 201, { code: roomCode, playerId: hostId, lobby: lobbyInfo(room) });
@@ -337,6 +341,9 @@ async function handleApi(req, res, parts, url) {
     });
     room.status = 'playing';
     room.persisted = false;
+    // Kickoff grace: a client that has not posted input (or opened SSE) yet must
+    // not be replaced by a bot on the very first tick.
+    for (const p of participants) room.seen.set(p.id, Date.now());
     syncPresence(room);
     broadcast(room, 'start', room.match.getSnapshot(Date.now(), true));
     sendJSON(res, 200, { ok: true, status: room.status });
@@ -364,6 +371,8 @@ async function handleApi(req, res, parts, url) {
     });
     room.status = 'playing';
     room.persisted = false;
+    // Same kickoff grace window on restart.
+    for (const p of room.players.values()) room.seen.set(p.id, Date.now());
     syncPresence(room);
     broadcast(room, 'start', room.match.getSnapshot(Date.now(), true));
     sendJSON(res, 200, { ok: true, status: room.status });
@@ -376,6 +385,8 @@ async function handleApi(req, res, parts, url) {
       return true;
     }
     const body = await readBody(req);
+    room.seen.set(body.playerId, Date.now());
+    syncPresence(room); // a polling client becomes human again as soon as it sends input
     room.match.setInput(body.playerId, body, Date.now());
     sendJSON(res, 200, { ok: true });
     return true;
@@ -442,6 +453,7 @@ setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
     if (room.status !== 'playing' || !room.match) continue;
+    syncPresence(room); // refresh input/SSE presence; stale clients fall back to bots
     room.match.tick(now, CONFIG.tickMs / 1000);
 
     if (room.match.status === 'finished') {

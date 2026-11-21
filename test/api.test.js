@@ -109,6 +109,38 @@ test('state and result endpoints expose the authoritative match', async () => {
   assert.equal(result.data.status, 'playing');
 });
 
+test('a client that only polls and posts input is never replaced by a bot', async () => {
+  // Unity can play without opening the SSE stream. Presence must be inferred
+  // from recent input, both at kickoff and on every tick.
+  const created = await api('POST', '/api/rooms', { name: 'UnityHost' });
+  const { code, playerId: hostId } = created.data;
+  const joined = await api('POST', `/api/rooms/${code}/join`, { name: 'UnityGuest' });
+  const guestId = joined.data.playerId;
+
+  await api('POST', `/api/rooms/${code}/start`, { playerId: hostId });
+
+  // Kickoff grace window: nobody is a bot before the first input arrives.
+  const initial = await api('GET', `/api/rooms/${code}/state`);
+  for (const id of [hostId, guestId]) {
+    const p = initial.data.players.find((x) => x.id === id);
+    assert.equal(p.isBot, false, `${id} was botified at kickoff`);
+    assert.equal(p.connected, true);
+  }
+
+  // Sustained input without an SSE stream keeps both humans in control.
+  for (let i = 0; i < 6; i++) {
+    await api('POST', `/api/rooms/${code}/input`, { playerId: hostId, dx: 1, dy: 0 });
+    await api('POST', `/api/rooms/${code}/input`, { playerId: guestId, dx: -1, dy: 0 });
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  const state = await api('GET', `/api/rooms/${code}/state`);
+  for (const id of [hostId, guestId]) {
+    const p = state.data.players.find((x) => x.id === id);
+    assert.equal(p.isBot, false, `${id} was botified without SSE`);
+    assert.equal(p.connected, true);
+  }
+});
+
 test('static client is served from the same server', async () => {
   const res = await fetch(`${BASE}/`);
   assert.equal(res.status, 200);

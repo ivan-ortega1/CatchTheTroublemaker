@@ -13,6 +13,8 @@
 | Node.js | v24.16.0 | Execució del servidor i dels tests (`node --test`). Comprovat amb `node --version`. |
 | Eina de navegador de l'entorn | Chromium integrat | Prova real de la interfície: crear sala, triar rol, iniciar partida, comprovar HUD i consola. |
 | Git | 2.54.0 | Control de versions, tal com demana la FAQ. |
+| Unity 6.6 (6000.6.9f1) + Universal 2D | Editor instal·lat a l'equip | Segona fase: client del joc dins del projecte Unity de la plantilla. |
+| Roslyn (`csc.dll`) d'Unity | Compilador del SDK 8 inclòs amb Unity | Verificació ràpida de compilació dels scripts C# sense tancar l'editor obert. |
 
 No s'han fet servir altres models generatius, llibreries de pagament ni serveis externs.
 El projecte **no té dependències npm**: la IA va proposar-ho i es va acceptar perquè facilita
@@ -135,6 +137,10 @@ als pares si cap nen arriba a la meta.
 | 8 | Guard d'estat de connexió massa complicat i erroni. | Condició `p.isBot !== false && p.id.startsWith('bot-')`. | Simplificat a `if (!p || p.id.startsWith('bot-')) return;`. |
 | 9 | El `fetch` del client podia fallar si el servidor es reiniciava. | SSE no sempre es reconnecta immediatament. | `onerror` tanca l'SSE i arrenca polling de 250 ms com a *fallback*. |
 | 10 | L'amfitrió podia començar sense triar rol i el HUD mostrava "—". | `start` filtrava els jugadors sense rol i els 6 llocs acabaven sent bots. | Assignació automàtica d'un rol lliure a l'inici i etiqueta *Spectator* com a fallback. |
+| 11 | L'usuari va demanar **fer-ho amb el projecte Unity Universal 2D**, no només web. | Primera entrega pensada com a client web. | Es va mantenir el servidor Node (endpoint i asíncron) i es va afegir un client Unity complet a `Assets/CatchTheTroublemaker/`. |
+| 12 | Unity no podia obrir el projecte en mode batch perquè l'editor ja estava obert amb el mateix projecte. | Bloqueig d'instància d'Unity. | Es va copiar el projecte a una carpeta temporal per compilar-lo sense tocar l'editor de l'usuari; a més es va verificar amb el `csc` d'Unity. |
+| 13 | Errors de compilació C# en la primera passada. | `CttApi` vs `CTTApi`, paràmetre `size` duplicat, `Screen` (enum) enfront de `UnityEngine.Screen`, mètode estàtic que feia servir un camp d'instància. | Corregits i recompilats fins a 0 errors. |
+| 14 | El primer *patch* de presència (`room.seen`) no funcionava: tots els jugadors es convertien en bots en iniciar. | `syncPresence()` només es cridava a `start`/`restart`, abans que arribés cap input; després ja no es tornava a cridar. | Cridar-ho al *tick loop* (20 Hz) i a `/input`, i donar una finestra de gràcia inicial a cada jugador. Prova de regressió afegida → 15/15 tests. |
 
 ### Què va funcionar a la primera
 
@@ -187,3 +193,67 @@ L'ordre complerta està dins de la sessió d'OpenCode. Les parts rellevants
 (prompt inicial, pregunta d'stack, decisions, iteracions) s'han reproduït de forma
 esquemàtica en aquest document. Per a la presentació es pot exportar/copiar la
 sessió des de la pròpia interfície d'OpenCode i destacar les seccions 3, 4 i 7.
+
+---
+
+## 11. Segona fase: el client Unity Universal 2D
+
+Després de la primera entrega, l'usuari va dir:
+
+> "Thanks, but now do it with the Unity Universal 2D Project that I created in the same folder I'm sharing"
+
+**Directriu interpretada:** el joc ha de ser el projecte Unity de la plantilla, no un
+lloc web independent. No cal llençar el treball fet: l'enunciat continua exigint un
+*endpoint* i comunicació asíncrona entre màquines, així que el servidor Node es manté
+com a **backend autoritatiu** i Unity es converteix en un client més.
+
+### Prompt / restriccions → resposta de l'agent
+
+| Directriu | Resposta de l'agent |
+| --- | --- |
+| "Fes-ho amb el Unity Universal 2D Project" | Es va inspeccionar `ProjectVersion.txt` (6000.6.9f1), `manifest.json` (Input System 1.20.1, uGUI 2.6.0, URP 17.6.0) i `ProjectSettings.asset` (`activeInputHandler: 1`, és a dir, **només Input System**). |
+| "El projecte que he creat jo" | No es va sobreescriure res de la plantilla: es va crear `Assets/CatchTheTroublemaker/` amb 9 scripts C# i el seu README. |
+| "Ha de ser jugable" | `CttBootstrap` ho crea tot en temps d'execució (càmera, EventSystem, UI), així que només cal obrir `SampleScene` i prémer Play. |
+| "Sense dependències noves" | Tota l'art és procedural (`Texture2D.SetPixels32`): monedes, parets, mapa i formes ■ ▲ ★. No cal importar sprites. |
+| "Comunicació asíncrona també a Unity" | `DownloadHandlerScript` propi que llegeix l'SSE del servidor i encua els esdeveniments per al *main thread*; sondeig `/state` com a *fallback*. |
+| "Que es pugui jugar entre màquines" | Camp *Server URL* a la pantalla inicial; es desa a `PlayerPrefs`. Un jugador Unity pot jugar contra un de navegador. |
+
+### Decisions tècniques de la fase Unity
+
+| Decisió | Per què | Alternativa descartada |
+| --- | --- | --- |
+| UI construïda per codi (uGUI) | Zero *drag & drop* a l'inspector; qualsevol escena serveix. | Prefabs i canvas muntats a mà (fràgil i lent de documentar). |
+| Input System (no `UnityEngine.Input`) | El projecte té `activeInputHandler: 1`; la API antiga dóna errors. | Activar *Both* i fer servir la API clàssica. |
+| `RuntimeInitializeOnLoadMethod` | L'editor no cal que reimporti escenes noves. | Afegir manualment un GameObject a `SampleScene`. |
+| SSE amb `DownloadHandlerScript` | `EventSource` no existeix a Unity; cal llegir el flux `text/event-stream` a trossos. | Fer només *polling* (funciona, però menys "asíncron" i menys immediat). |
+| `PlayerPrefs` per a codi i `playerId` | Reconnectar després de recarregar l'escena és trivial. | Demanar sempre el codi a mà. |
+| DTOs separats (`CTTData.cs`) | `JsonUtility` no pot deserialitzar arrays al nivell arrel; es va adaptar l'estructura a objectes. | `SimpleJSON` / Newtonsoft (dependència extra). |
+
+### Verificació d'aquesta fase
+
+- Compilació dels 9 scripts amb el compilador Roslyn inclòs en Unity 6, referenciant
+  `UnityEngine.*`, `UnityEngine.UI.dll` i `Unity.InputSystem.dll` → **0 errors**.
+- Importació real en una còpia temporal del projecte amb Unity en *batch mode*: es
+  van generar els 9 fitxers `.meta`, confirmant que l'editor reconeix els scripts.
+- El backend passa amb **15/15 tests** (`npm test`), inclòs un test de regressió que
+  simula un client Unity que només fa *polling* i envia input sense obrir l'SSE.
+- Prova end-to-end real contra el servidor: sala, dos humans, rols, start, 3 s d'input
+  sense SSE → tots dos segueixen `isBot: false`, `connected: true`, i `/result` respon.
+- L'editor original de l'usuari es va deixar obert i sense modificacions d'escena.
+
+### Canvi al servidor derivat d'Unity
+
+`syncPresence()` abans només considerava "connectat" qui tenia un flux SSE obert.
+Això feia que un client Unity que encara no hagués connectat l'SSE es convertís en bot
+a l'iniciar la partida. Es va afegir `room.seen` (marca de temps actualitzada per
+`/input` i per l'obertura del flux), amb una finestra de 10 segons.
+
+**Primera iteració (insuficient):** només es cridava `syncPresence()` a `start`/`restart`,
+és a dir, abans que el client hagués pogut enviar cap input. Una prova end-to-end va
+demostrar que els dos humans es convertien en bots a `tick 0` i no es recuperaven mai.
+
+**Correcció:** cridar `syncPresence()` al *tick loop* (20 Hz) i just després de cada
+`/input`, més una finestra de gràcia que marca `room.seen` per a tots els humans a
+l'inici (i al reinici). Amb això, un client que només sondeja `/state` es manté humà
+mentre enviï intencions, i torna a ser bot automàticament si deixa de fer-ho durant
+10 s. És un canvi de robustesa que també beneficia el client web.
