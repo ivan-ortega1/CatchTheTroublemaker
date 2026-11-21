@@ -45,6 +45,7 @@ namespace CatchTheTroublemaker
             mapObject.transform.SetParent(transform, false);
             mapObject.transform.position = new Vector3(0f, 0f, 1f);
             mapRenderer = mapObject.GetComponent<SpriteRenderer>();
+            mapRenderer.sharedMaterial = CTTDraw.SpriteMaterial;
             mapRenderer.sortingOrder = -10;
         }
 
@@ -82,6 +83,9 @@ namespace CatchTheTroublemaker
         {
             if (snapshot == null) return;
 
+            // The map is only sent in a full snapshot (hello / start / /state).
+            // Tick snapshots omit it, but they still carry live coin and player
+            // positions, so always update actors once we know the map dimensions.
             CTTMap map = snapshot.map;
             if (map != null && map.cols > 0 && map.rows > 0 && !string.IsNullOrEmpty(map.tiles))
             {
@@ -94,9 +98,11 @@ namespace CatchTheTroublemaker
                     currentTiles = map.tiles;
                     RebuildMap();
                 }
-                UpdateCoins(snapshot.coins);
-                UpdatePlayers(snapshot.players);
             }
+
+            if (mapKey.Length == 0) return;
+            UpdateCoins(snapshot.coins);
+            UpdatePlayers(snapshot.players);
         }
 
         private void RebuildMap()
@@ -132,8 +138,9 @@ namespace CatchTheTroublemaker
                 go.transform.SetParent(transform, false);
                 var sr = go.GetComponent<SpriteRenderer>();
                 sr.sprite = CTTDraw.Coin();
+                sr.sharedMaterial = CTTDraw.SpriteMaterial;
                 sr.sortingOrder = 1;
-                go.transform.localScale = Vector3.one * 1.2f;
+                go.transform.localScale = Vector3.one * 1.6f;
                 coinViews.Add(sr);
             }
 
@@ -161,10 +168,9 @@ namespace CatchTheTroublemaker
                 if (!view.root.activeSelf) continue;
 
                 view.root.transform.position = TileToWorld(p.x, p.y);
-                Color color = CTTConfig.ColorOf(p.role, highContrast);
-                if (p.grace) color = Color.Lerp(color, Color.white, 0.35f);
-                if (p.sprinting) color = Color.Lerp(color, Color.yellow, 0.25f);
-                view.body.color = color;
+                // Keep the exact role colour used by the menu squares. State is
+                // still visible through position, the local frame and the HUD.
+                view.body.color = CTTConfig.ColorOf(p.role, highContrast);
 
                 // A thin white frame is the only marker for the local player.
                 view.outline.gameObject.SetActive(p.id == followId);
@@ -190,6 +196,7 @@ namespace CatchTheTroublemaker
             outlineObject.transform.localScale = Vector3.one * 1.18f;
             var outline = outlineObject.GetComponent<SpriteRenderer>();
             outline.sprite = CTTDraw.Shape("square");
+            outline.sharedMaterial = CTTDraw.SpriteMaterial;
             outline.sortingOrder = 2;
             outline.color = Color.white;
             outline.gameObject.SetActive(false);
@@ -198,6 +205,7 @@ namespace CatchTheTroublemaker
             bodyObject.transform.SetParent(root.transform, false);
             var body = bodyObject.GetComponent<SpriteRenderer>();
             body.sprite = CTTDraw.Shape("square");
+            body.sharedMaterial = CTTDraw.SpriteMaterial;
             body.sortingOrder = 3;
             body.color = CTTConfig.ColorOf(p.role, highContrast);
 

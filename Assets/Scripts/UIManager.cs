@@ -83,9 +83,10 @@ namespace CatchTheTroublemaker
             scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = 0.5f;
 
-            var background = CttUi.PanelAt("Background", canvas.transform, CttUi.Background);
-            background.SetAsFirstSibling();
-
+            // Do NOT add a permanent full-screen backdrop here: the overlay Canvas
+            // draws above the world, so an opaque background would hide the whole
+            // game. Each menu/lobby/result panel already has its own backdrop and
+            // the in-game HUD is deliberately transparent.
             BuildHome();
             BuildLobby();
             BuildHud();
@@ -141,7 +142,8 @@ namespace CatchTheTroublemaker
             {
                 string role = CTTConfig.RoleOrder[i];
                 float x = (i - 2.5f) * 156f;
-                CttUi.Icon(legend, "Icon_" + role, CTTConfig.ColorOf(role), new Vector2(52, 52),
+                CttUi.Icon(legend, "Icon_" + role,
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast), new Vector2(52, 52),
                     new Vector2(0.5f, 0.5f), new Vector2(x, 10));
                 CttUi.LabelAt(legend, "Code_" + role, CTTConfig.ShortOf(role), 21, CttUi.Muted,
                     new Vector2(0.5f, 0.5f), new Vector2(110, 26), new Vector2(x, -26));
@@ -193,7 +195,8 @@ namespace CatchTheTroublemaker
                     new Vector2(0.5f, 1f), new Vector2(340, 150), new Vector2(x, -y), 22);
                 roleButtons[i] = button;
 
-                CttUi.Icon(button.transform, "Character", CTTConfig.ColorOf(role), new Vector2(78, 78),
+                CttUi.Icon(button.transform, "Character",
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast), new Vector2(78, 78),
                     new Vector2(0f, 0.5f), new Vector2(60, 8));
                 CttUi.InsetCaption(button, 112f);
             }
@@ -264,7 +267,8 @@ namespace CatchTheTroublemaker
             {
                 string role = CTTConfig.RoleOrder[i];
                 float x = (i - 2.5f) * 122f;
-                rosterIcons[i] = CttUi.Icon(strip, "Icon_" + role, CTTConfig.ColorOf(role),
+                rosterIcons[i] = CttUi.Icon(strip, "Icon_" + role,
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast),
                     new Vector2(48, 48), new Vector2(0.5f, 0.5f), new Vector2(x, 12));
                 rosterLabels[i] = CttUi.LabelAt(strip, "Code_" + role, CTTConfig.ShortOf(role), 20,
                     CttUi.Muted, new Vector2(0.5f, 0.5f), new Vector2(100, 26), new Vector2(x, -28));

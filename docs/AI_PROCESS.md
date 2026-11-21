@@ -293,6 +293,9 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 | `SpriteRenderer` en espai de món | És el que s'espera d'un joc 2D: càmera, profunditat (sorting orders) i objectes que es poden inspeccionar. | Dibuixar el mapa en un `RawImage` de canvas (fase anterior). |
 | **Quadres de color** per a tots els personatges | L'usuari va demanar explicitament "the characters just being colored icon squares". S'han eliminat les formes ■ ▲ ★ i les etiquetes 3D del client Unity: ara el mateix quadrat pla apareix al menú (llegenda de 6), al lobby (una fitxa per rol) i al HUD (tira de 6). El jugador local es distingeix amb un marc blanc. | Formes diferents per rol al client Unity (es conserven al client web). |
 | **Tots els panels fills del Canvas** | Bug detectat en provar l'escena: només es veien els botons CA/EN perquè `Card()` i `HudPanel` es creaven amb `parent = null` (arrel de l'escena). uGUI no renderitza `Graphic` que no estigui dins d'un `Canvas`. Ara tots els panels reben `canvas.transform` i els botons globals s'afegeixen al final per quedar per sobre. | Continuar afegint `Graphic` a l'arrel i esperar que el `ScreenSpaceOverlay` els trobi. |
+| **Sense fons opac global al Canvas** | Segon bug del mateix prova: un `Image` opac a pantalla completa creat a `Build()` tapava tot el món 2D durant la partida (l'overlay es dibuixa per sobre de l'escena). Cada panell de menú/lobby/resultat ja té el seu propi fons; s'ha eliminat el global i el HUD és transparent. | Fer transparent el fons només en jugar (fràgil: qualsevol estat nou el tornava a posar opac). |
+| **Monedes = cercles grocs** | L'usuari va demanar "display the coins as yellow circles". `CTTDraw.Coin()` ara és un disc groc brillant amb vora més fosca i un reflex; les monedes s'han fet una mica més grans. | El disc amb vora marró de la versió anterior. |
+| **Colors de personatge idèntics al menú** | S'han eliminat els tintats de *grace* i *sprint* als `SpriteRenderer` perquè l'usuari va demanar "the same colors like when selecting in the menu". El jugador local es distingeix només amb el marc blanc. Totes les icones UI (menú, lobby, HUD) fan servir la mateixa paleta i el mateix estat de contrast. | Barrejar colors amb blanc/groc segons l'estat del jugador. |
 
 ### Resultat i verificació
 
@@ -306,6 +309,10 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 - Iteració final de UI: els panels de fase es paren a `canvas.transform`; sense això
   només els botons CA/EN (fills del Canvas) eren visibles a Play. Compilació de nou
   amb 0 errors després del canvi.
+- Iteració de món: s'ha tret el fons opac global del Canvas (tapava mapa, monedes i
+  jugadors), `ApplyState` actualitza actors també amb snapshots sense `map`, i s'usa
+  un material `Sprite-Unlit` compatible amb URP. Monedes = cercles grocs; jugadors =
+  quadrats amb el color exacte de la selecció de rol.
 - Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
   el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
   `GET /api/rooms/<cod>/result` respon correctament.

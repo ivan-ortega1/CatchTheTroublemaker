@@ -10,15 +10,30 @@ namespace CatchTheTroublemaker
     public static class CTTDraw
     {
         private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
+        private static Material spriteMaterial;
+
+        /// <summary>Unlit sprite material that works on both Built-in and URP 2D.</summary>
+        public static Material SpriteMaterial
+        {
+            get
+            {
+                if (spriteMaterial != null) return spriteMaterial;
+                Shader shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default")
+                    ?? Shader.Find("Sprites/Default");
+                if (shader != null) spriteMaterial = new Material(shader);
+                return spriteMaterial;
+            }
+        }
 
         public static Sprite Coin()
         {
             if (Sprites.ContainsKey("coin")) return Sprites["coin"];
             var tex = NewTexture(48, 48);
             var px = new Color32[48 * 48];
-            FillCircle(px, 48, 48, 24, 24, 17, CTTConfig.Parse("#a86b00"));
-            FillCircle(px, 48, 48, 24, 24, 15, CTTConfig.Parse("#ffd166"));
-            FillCircle(px, 48, 48, 19, 19, 4, new Color(1f, 1f, 1f, 0.9f));
+            // A bright yellow circle with a slightly deeper rim and one glint.
+            FillCircle(px, 48, 48, 24, 24, 18, CTTConfig.Parse("#e3a400"));
+            FillCircle(px, 48, 48, 24, 24, 16, CTTConfig.Parse("#ffd400"));
+            FillCircle(px, 48, 48, 19, 19, 4, new Color32(255, 255, 225, 220));
             return Store("coin", tex, px);
         }
 

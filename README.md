@@ -26,7 +26,7 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 3. The home screen has a **Server URL** field (default `http://localhost:3000`). Change it to your machine's LAN IP (e.g. `http://192.168.1.20:3000`) when playing from another computer.
 4. Create a room or join with the 5-letter code, pick a role, and let the host start.
 
-All artwork is generated procedurally at runtime — no image assets to import. In the Unity client every character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). The browser client keeps the ■ ▲ ★ shape coding.
+All artwork is generated procedurally at runtime — no image assets to import. In the Unity client every character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). In the world, characters keep those exact role colours and coins are bright **yellow circles**. The browser client keeps the ■ ▲ ★ shape coding.
 
 ### Play in a browser
 
