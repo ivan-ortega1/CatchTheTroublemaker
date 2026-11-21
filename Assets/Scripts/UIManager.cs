@@ -86,6 +86,13 @@ namespace CatchTheTroublemaker
             var background = CttUi.PanelAt("Background", canvas.transform, CttUi.Background);
             background.SetAsFirstSibling();
 
+            BuildHome();
+            BuildLobby();
+            BuildHud();
+            BuildResult();
+
+            // These overlay controls are added last so they stay above the full-screen
+            // phase panels (a sibling added later is drawn on top in uGUI).
             bool ca = game != null && game.Catalan;
             CttUi.Button(canvas.transform, "Language", CTTConfig.Tr("lang", ca), CttUi.Panel,
                 () => LanguageToggled?.Invoke(),
@@ -97,11 +104,6 @@ namespace CatchTheTroublemaker
             var toastHolder = CttUi.Rect("ToastHolder", canvas.transform);
             CttUi.Place(toastHolder, new Vector2(0.5f, 1f), new Vector2(1100, 54), new Vector2(0, -128));
             toast = CttUi.Label(toastHolder, "Toast", "", 26, CttUi.Accent);
-
-            BuildHome();
-            BuildLobby();
-            BuildHud();
-            BuildResult();
         }
 
         private static RectTransform At(RectTransform parent, string name, float width, float height,
@@ -112,7 +114,9 @@ namespace CatchTheTroublemaker
             return rt;
         }
 
-        private static RectTransform Card(string name) => CttUi.PanelAt(name, null, CttUi.Background);
+        // A uGUI graphic outside the Canvas hierarchy is never rendered, so every
+        // full-screen phase panel must be a child of the canvas created in Build().
+        private RectTransform Card(string name) => CttUi.PanelAt(name, canvas.transform, CttUi.Background);
 
         private static RectTransform CardInner(RectTransform parent, float width, float height)
         {
@@ -204,7 +208,7 @@ namespace CatchTheTroublemaker
 
         private void BuildHud()
         {
-            hudPanel = CttUi.PanelAt("HudPanel", null, new Color(0f, 0f, 0f, 0f));
+            hudPanel = CttUi.PanelAt("HudPanel", canvas.transform, new Color(0f, 0f, 0f, 0f));
             hudPanel.GetComponent<Image>().raycastTarget = false;
 
             RectTransform top = CttUi.Rect("TopBar", hudPanel);

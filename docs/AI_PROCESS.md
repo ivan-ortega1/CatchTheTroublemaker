@@ -292,6 +292,7 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 | Còpia temporal del projecte per executar l'editor en *batch* | L'editor de l'usuari estava obert amb el mateix projecte i Unity bloqueja una segona instància. | Tancar l'editor de l'usuari (no acceptable). |
 | `SpriteRenderer` en espai de món | És el que s'espera d'un joc 2D: càmera, profunditat (sorting orders) i objectes que es poden inspeccionar. | Dibuixar el mapa en un `RawImage` de canvas (fase anterior). |
 | **Quadres de color** per a tots els personatges | L'usuari va demanar explicitament "the characters just being colored icon squares". S'han eliminat les formes ■ ▲ ★ i les etiquetes 3D del client Unity: ara el mateix quadrat pla apareix al menú (llegenda de 6), al lobby (una fitxa per rol) i al HUD (tira de 6). El jugador local es distingeix amb un marc blanc. | Formes diferents per rol al client Unity (es conserven al client web). |
+| **Tots els panels fills del Canvas** | Bug detectat en provar l'escena: només es veien els botons CA/EN perquè `Card()` i `HudPanel` es creaven amb `parent = null` (arrel de l'escena). uGUI no renderitza `Graphic` que no estigui dins d'un `Canvas`. Ara tots els panels reben `canvas.transform` i els botons globals s'afegeixen al final per quedar per sobre. | Continuar afegint `Graphic` a l'arrel i esperar que el `ScreenSpaceOverlay` els trobi. |
 
 ### Resultat i verificació
 
@@ -302,6 +303,9 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
   totes les referències serialitzades (`network`, `ui`, `board`, `playerInput`) i sense
   errors de compilació al log. Aquesta escena es va copiar al projecte original.
 - `npm test` → **15/15** (cap canvi al servidor en aquesta fase).
+- Iteració final de UI: els panels de fase es paren a `canvas.transform`; sense això
+  només els botons CA/EN (fills del Canvas) eren visibles a Play. Compilació de nou
+  amb 0 errors després del canvi.
 - Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
   el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
   `GET /api/rooms/<cod>/result` respon correctament.
