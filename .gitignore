@@ -1,0 +1,17 @@
+# Unity generated caches (keep the real project files tracked)
+Library/
+Temp/
+Logs/
+UserSettings/
+obj/
+.vs/
+*.csproj.user
+
+# Node
+node_modules/
+data/*.jsonl
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
