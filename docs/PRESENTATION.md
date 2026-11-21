@@ -1,0 +1,83 @@
+# Exposició — esquema de presentació
+
+Durada suggerida: 8–10 minuts + 3 minuts de demo i preguntes.
+Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
+
+---
+
+### 1. Portada
+- **Catch the Troublemaker** / *Catch l'entremaliat*
+- Joc multijugador de mapa compartit, fet amb agents d'IA.
+- Autors · DAM2 · data.
+
+### 2. La idea (30 s)
+- Dues famílies: pares + entremaliat.
+- Pares → capturar abans dels 50 coins. Nens → arribar a 50 i escapar.
+- **Regla clau:** només els pares del mateix fill poden capturar-lo.
+- Repte explícit de l'enunciat: equilibrar això.
+
+### 3. Requisits → solució (1 min)
+
+| Requisit | Solució |
+| --- | --- |
+| >1 jugador, màquines diferents | Navegadors connectats a un servidor Node |
+| Sala / master | Lobby + amfitrió que inicia |
+| Mapa aleatori | PRNG amb llavor per sala + BFS |
+| Comunicació asíncrona | SSE + POST d'intenció |
+| Endpoint del guanyador | `GET /api/rooms/:code/result` |
+| Estètica / usabilitat / accessibilitat | Canvas, CA/EN, tàctil, ARIA, contrast |
+| Documentar el procés IA | `docs/AI_PROCESS.md` |
+| Git | Repositori amb *commits* per fases |
+
+### 4. Arquitectura (1 min)
+- Dibuixar al quadre:
+  `Navegador → POST /input → Servidor (20 Hz) → Motor → snapshots SSE → Navegador`
+- **Servidor autoritatiu:** el client només envia intenció; no decideix res.
+- Motor pur (`engine.js`) → testejable sense HTTP.
+
+### 5. El joc en acció (demo, 3 min)
+1. `node server/index.js` → `http://localhost:3000`.
+2. Crear sala, copiar codi, obrir una segona pestanya i unir-s'hi.
+3. Triar rols: un pare A i un entremaliat A. La resta són bots.
+4. Start → explicar HUD: monedes per família, temps, vides, esprint.
+5. Moure's amb WASD; demonstrar captura *correcta* i captura d'**altra família** (no fa res).
+6. Obrir `/api/rooms/<cod>/result` al final (o mostrar un resultat desat).
+
+### 6. Equilibri (1,5 min) — el punt important
+- Problema: "només els teus pares poden caçar-te" afavoreix els nens.
+- Taula ràpida de 7 contrapessos: velocitat, esprint, vides, pèrdua de monedes,
+  confiscació, head start, bots i posicions inicials.
+- **Dada observada:** abans l'esprint dels pares era ×1.9 (9.9 caselles/s) i les
+  captures eren massa ràpides; després d'ajustar a ×1.55 i afegir 5 s d'immunitat,
+  la partida dura més i hi ha marge de remuntada.
+
+### 7. Accessibilitat i usabilitat (45 s)
+- Color **+ forma** (■ pare, ▲ mare, ★ entremaliat) → no depèn només del color.
+- Català/anglès, mida de text, alt contrast, `prefers-reduced-motion`.
+- `aria-live` per a esdeveniments; teclat complet i control tàctil.
+
+### 8. Procés amb IA (1,5 min)
+- Eina: **OpenCode (Big Pickle)**.
+- Prompt inicial = idea + enunciat complet + FAQ.
+- **Pregunta prèvia:** quina tecnologia? → l'usuari va triar Web + Node.
+- No es va copiar la primera resposta: es van investigar SSE, BFS, PRNG i `node --test`.
+
+### 9. Iteracions (1 min) — "què va fallar"
+- Rutes API desplaçades → 404 → corregit.
+- Bots encallats a parets → BFS.
+- Test amb la moneda al lloc equivocat → corregit.
+- Esdeveniments duplicats → deduplicació.
+- Desconnexions → bot que agafa el relleu.
+- Equilibri ajustat després d'una partida real.
+
+### 10. Verificació i lliçons (45 s)
+- **14/14 tests** (`npm test`): regles + API.
+- Prova al navegador: sala, rol, start, moneda, captura, sense errors de consola.
+- Lliçó: preguntar abans, separar motor de transport, provar l'equilibri, documentar sobre la marxa, fer servir Git.
+
+### Preguntes probables
+- *Per què SSE i no WebSocket?* → només cal push unidireccional; HTTP pur i reconnexió automàtica.
+- *I si un jugador no connecta?* → els rols lliures els agafen bots.
+- *Es pot falsejar la victòria des del client?* → no: el motor del servidor decideix.
+- *On es desa la partida?* → `data/matches.jsonl`; opcional, no obligatori a l'enunciat.
+- *Per què no Unity?* → l'enunciat demanava endpoint i comunicació entre màquines; es va consultar l'usuari i es va pivotar.

@@ -1,0 +1,15 @@
+{
+  "name": "catch-the-troublemaker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Async multiplayer hyper-casual game: parents vs troublemakers. Server-authoritative Node.js + browser client.",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

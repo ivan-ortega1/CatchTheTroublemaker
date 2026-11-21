@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1024">
+  <meta name="description" content="Catch the Troublemaker - a real-time multiplayer game where parents chase their own kids across a random map.">
+  <title>Catch the Troublemaker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">★</span>
+        <span class="brand-text" data-i18n="brand">Catch the Troublemaker</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="font-size" role="group" aria-label="Text size">
+          <button id="btn-font-minus" class="icon-btn" aria-label="Decrease text size">A−</button>
+          <button id="btn-font-plus" class="icon-btn" aria-label="Increase text size">A+</button>
+        </div>
+        <button id="btn-contrast" class="chip" aria-pressed="false" aria-label="Toggle high contrast" data-i18n="contrast">High contrast</button>
+        <button id="btn-lang" class="chip" aria-label="Change language">CA / EN</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ============ HOME ============ -->
+      <section id="screen-home" class="screen active" aria-labelledby="home-title">
+        <div class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow" data-i18n="eyebrow">A shared-map party game · 2–6 players</p>
+            <h1 id="home-title" data-i18n="heroTitle">One kid. Fifty coins. Two very tired parents.</h1>
+            <p class="lede" data-i18n="heroLede">
+              Two families share one random map. Parents can only catch <em>their own</em>
+              child. Troublemakers just want to fill their pockets and disappear.
+            </p>
+            <div class="join-panel">
+              <label for="player-name" data-i18n="yourName">Your name</label>
+              <div class="join-row">
+                <input id="player-name" type="text" maxlength="24" autocomplete="nickname"
+                       placeholder="e.g. Marta" data-i18n-placeholder="namePlaceholder">
+                <button id="btn-create" class="primary" data-i18n="createRoom">Create room</button>
+              </div>
+              <div class="join-row">
+                <input id="join-code" type="text" maxlength="5" autocomplete="off"
+                       placeholder="ABCDE" aria-label="Room code" data-i18n-placeholder="codePlaceholder">
+                <button id="btn-join" class="secondary" data-i18n="joinRoom">Join room</button>
+              </div>
+              <p id="home-error" class="error" role="alert"></p>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="art-board">
+              <span class="art-coin c1">●</span><span class="art-coin c2">●</span>
+              <span class="art-coin c3">●</span><span class="art-coin c4">●</span>
+              <span class="art-player p1">■</span><span class="art-player p2">▲</span>
+              <span class="art-player p3">★</span>
+              <span class="art-tag">50 ★</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-cards">
+          <article class="info-card">
+            <span class="card-num">01</span>
+            <h2 data-i18n="rulesTitle">The rules</h2>
+            <p data-i18n="rulesBody">A troublemaker wins the moment they hold 50 coins. Parents win by grounding both troublemakers — or by running out the clock.</p>
+          </article>
+          <article class="info-card">
+            <span class="card-num">02</span>
+            <h2 data-i18n="catchTitle">Family only</h2>
+            <p data-i18n="catchBody">Dad&nbsp;A and Mum&nbsp;A can catch Troublemaker&nbsp;A only. Wrong-family tags do nothing. Each kid has three lives and drops every coin when caught.</p>
+          </article>
+          <article class="info-card">
+            <span class="card-num">03</span>
+            <h2 data-i18n="balanceTitle">Keeping it fair</h2>
+            <p data-i18n="balanceBody">Kids run faster; parents sprint harder and can confiscate coins. Empty seats become bots, and nobody starts next to their own parents.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ LOBBY ============ -->
+      <section id="screen-lobby" class="screen" aria-labelledby="lobby-title">
+        <div class="lobby-head">
+          <div>
+            <p class="eyebrow" data-i18n="waitingRoom">Waiting room</p>
+            <h1 id="lobby-title" data-i18n="lobbyTitle">Pick your seat at the table</h1>
+          </div>
+          <div class="code-card">
+            <span data-i18n="roomCode">Room code</span>
+            <strong id="room-code">-----</strong>
+            <button id="btn-copy" class="icon-btn" data-i18n="copy">Copy</button>
+          </div>
+        </div>
+        <p id="lobby-hint" class="hint" data-i18n="lobbyHint">Share the code. Unclaimed roles are played by bots, so two people are enough to start.</p>
+        <div class="lobby-grid">
+          <div class="panel">
+            <h2 data-i18n="players">Players</h2>
+            <ul id="player-list" class="player-list"></ul>
+          </div>
+          <div class="panel">
+            <h2 data-i18n="chooseRole">Choose your role</h2>
+            <div id="role-grid" class="role-grid"></div>
+            <div class="lobby-buttons">
+              <button id="btn-start" class="primary" data-i18n="startGame">Start game</button>
+              <button id="btn-leave" class="ghost" data-i18n="leave">Leave room</button>
+            </div>
+            <p id="lobby-error" class="error" role="alert"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ GAME ============ -->
+      <section id="screen-game" class="screen" aria-labelledby="game-title">
+        <h1 id="game-title" class="sr-only" data-i18n="gameTitle">Game in progress</h1>
+        <div class="hud">
+          <div class="hud-block hud-role">
+            <span class="hud-label" data-i18n="youAre">You are</span>
+            <strong id="hud-role" class="role-pill">—</strong>
+            <span id="hud-lives" class="hud-sub"></span>
+          </div>
+          <div class="hud-block hud-score">
+            <div class="score-line">
+              <span class="dot dot-a"></span><span data-i18n="teamA">Family A</span>
+              <div class="progress"><div id="bar-a" class="progress-fill fill-a"></div></div>
+              <strong id="score-a">0</strong><span class="of">/50</span>
+            </div>
+            <div class="score-line">
+              <span class="dot dot-b"></span><span data-i18n="teamB">Family B</span>
+              <div class="progress"><div id="bar-b" class="progress-fill fill-b"></div></div>
+              <strong id="score-b">0</strong><span class="of">/50</span>
+            </div>
+          </div>
+          <div class="hud-block hud-time">
+            <span class="hud-label" data-i18n="timeLeft">Time left</span>
+            <strong id="hud-timer">6:00</strong>
+            <div class="sprint-meter" title="Sprint cooldown">
+              <div id="sprint-fill" class="sprint-fill"></div>
+            </div>
+            <span id="sprint-label" class="hud-sub" data-i18n="sprint">Sprint</span>
+          </div>
+        </div>
+
+        <div class="game-stage">
+          <canvas id="game-canvas" width="1100" height="750"
+                  role="img" data-i18n-aria="canvasAria"
+                  aria-label="Game map showing both families, coins and obstacles"></canvas>
+          <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+        </div>
+
+        <div class="controls-row">
+          <p class="hint"><kbd>WASD</kbd> / <kbd>↑←↓→</kbd> <span data-i18n="moveHint">move</span> ·
+            <kbd>Space</kbd> <span data-i18n="sprintHint">sprint</span> ·
+            <span data-i18n="touchHint">Touch controls below on mobile</span></p>
+          <div class="touch-controls" aria-label="Touch controls">
+            <div class="dpad">
+              <button class="pad" data-dir="up" aria-label="Move up">▲</button>
+              <button class="pad" data-dir="left" aria-label="Move left">◀</button>
+              <button class="pad" data-dir="down" aria-label="Move down">▼</button>
+              <button class="pad" data-dir="right" aria-label="Move right">▶</button>
+            </div>
+            <button id="btn-sprint" class="pad sprint-pad" aria-label="Sprint" data-i18n="sprintShort">SPRINT</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ RESULT ============ -->
+      <section id="screen-result" class="screen" aria-labelledby="result-title">
+        <div class="result-card">
+          <p class="eyebrow" data-i18n="gameOver">Game over</p>
+          <h1 id="result-title">—</h1>
+          <p id="result-reason" class="lede"></p>
+          <div id="result-stats" class="result-stats"></div>
+          <div class="lobby-buttons">
+            <button id="btn-again" class="primary" data-i18n="playAgain">Play again</button>
+            <button id="btn-home" class="ghost" data-i18n="backHome">Back home</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span data-i18n="footer">Built as an AI-assisted project · Node.js + Server-Sent Events · no external dependencies</span>
+    </footer>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
