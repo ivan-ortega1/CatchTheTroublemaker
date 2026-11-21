@@ -133,6 +133,39 @@ namespace CatchTheTroublemaker
             return field;
         }
 
+        /// <summary>Flat coloured square used everywhere as a character icon.</summary>
+        public static Image Icon(Transform parent, string name, Color color, Vector2 size,
+            Vector2 anchor, Vector2 position)
+        {
+            var rt = Rect(name, parent);
+            Place(rt, anchor, size, position);
+            var image = rt.gameObject.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>Coloured square with a light frame, used to mark the local player.</summary>
+        public static Image FramedIcon(Transform parent, string name, Color color, Vector2 size,
+            Vector2 anchor, Vector2 position, float frame = 4f)
+        {
+            Icon(parent, name + "Frame", Color.white,
+                new Vector2(size.x + frame * 2f, size.y + frame * 2f), anchor, position);
+            return Icon(parent, name, color, size, anchor, position);
+        }
+
+        /// <summary>Push a button caption aside so a square icon can sit on its left.</summary>
+        public static void InsetCaption(Button button, float left)
+        {
+            var caption = button.GetComponentInChildren<Text>();
+            if (caption == null) return;
+            caption.rectTransform.anchorMin = Vector2.zero;
+            caption.rectTransform.anchorMax = Vector2.one;
+            caption.rectTransform.offsetMin = new Vector2(left, 0f);
+            caption.rectTransform.offsetMax = new Vector2(-8f, 0f);
+            caption.alignment = TextAnchor.MiddleLeft;
+        }
+
         public static RawImage BoardImage(Transform parent)
         {
             var rt = Rect("Board", parent);

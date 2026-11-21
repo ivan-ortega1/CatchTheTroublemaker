@@ -36,8 +36,7 @@ namespace CatchTheTroublemaker
         {
             public GameObject root;
             public SpriteRenderer body;
-            public SpriteRenderer halo;
-            public TextMesh label;
+            public SpriteRenderer outline;
         }
 
         private void Awake()
@@ -167,13 +166,8 @@ namespace CatchTheTroublemaker
                 if (p.sprinting) color = Color.Lerp(color, Color.yellow, 0.25f);
                 view.body.color = color;
 
-                bool local = p.id == followId;
-                view.halo.gameObject.SetActive(local);
-                view.halo.color = new Color(1f, 1f, 1f, 0.45f);
-
-                Vector3 markerPos = new Vector3(0f, 0.78f, 0f);
-                view.label.transform.localPosition = markerPos;
-                view.label.text = CTTConfig.ShortOf(p.role) + (p.isBot ? " ·" : "");
+                // A thin white frame is the only marker for the local player.
+                view.outline.gameObject.SetActive(p.id == followId);
             }
 
             var stale = new List<string>();
@@ -189,36 +183,25 @@ namespace CatchTheTroublemaker
         {
             var root = new GameObject("Player " + p.name);
             root.transform.SetParent(transform, false);
-            root.transform.localScale = Vector3.one * 1.6f;
+            root.transform.localScale = Vector3.one * 1.5f;
 
-            var haloObject = new GameObject("Halo", typeof(SpriteRenderer));
-            haloObject.transform.SetParent(root.transform, false);
-            haloObject.transform.localScale = Vector3.one * 1.25f;
-            var halo = haloObject.GetComponent<SpriteRenderer>();
-            halo.sprite = CTTDraw.Shape("square");
-            halo.sortingOrder = 2;
-            halo.color = new Color(1f, 1f, 1f, 0.45f);
+            var outlineObject = new GameObject("Outline", typeof(SpriteRenderer));
+            outlineObject.transform.SetParent(root.transform, false);
+            outlineObject.transform.localScale = Vector3.one * 1.18f;
+            var outline = outlineObject.GetComponent<SpriteRenderer>();
+            outline.sprite = CTTDraw.Shape("square");
+            outline.sortingOrder = 2;
+            outline.color = Color.white;
+            outline.gameObject.SetActive(false);
 
             var bodyObject = new GameObject("Body", typeof(SpriteRenderer));
             bodyObject.transform.SetParent(root.transform, false);
             var body = bodyObject.GetComponent<SpriteRenderer>();
-            body.sprite = CTTDraw.Shape(CTTConfig.ShapeOf(p.role));
+            body.sprite = CTTDraw.Shape("square");
             body.sortingOrder = 3;
             body.color = CTTConfig.ColorOf(p.role, highContrast);
 
-            var labelObject = new GameObject("Label", typeof(TextMesh));
-            labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 0.78f, 0f);
-            var label = labelObject.GetComponent<TextMesh>();
-            label.font = CttUi.Font;
-            label.fontSize = 42;
-            label.characterSize = 0.2f;
-            label.anchor = TextAnchor.MiddleCenter;
-            label.alignment = TextAlignment.Center;
-            label.color = Color.white;
-            label.text = CTTConfig.ShortOf(p.role);
-
-            return new PlayerView { root = root, body = body, halo = halo, label = label };
+            return new PlayerView { root = root, body = body, outline = outline };
         }
 
         /* ----------------------------- camera ----------------------------- */

@@ -6,7 +6,8 @@ Node.js server as the browser client in `public/`.
 ## Run
 
 1. Start the backend from the repository root: `node server/index.js` (or `npm start`).
-2. Open `Assets/Scenes/SampleScene.unity`. The Hierarchy already contains:
+2. Open a scene with the wired objects (`Assets/Scenes/SampleScene.unity`, or your own
+   scene after running the setup command). The Hierarchy contains:
    - `Main Camera` (orthographic, follows the local player)
    - `Global Light 2D`
    - `EventSystem`
@@ -31,11 +32,13 @@ If you ever need to recreate the scene structure, use
 | `CTTApi.cs` | Async `UnityWebRequest` GET/POST wrapper |
 | `CTTSseClient.cs` | Server-Sent Events reader with a `DownloadHandlerScript` parser and main-thread event queue |
 | `CTTData.cs` | Serializable DTOs matching the server JSON |
-| `CTTConfig.cs` | Role metadata, colours, shapes and CA/EN strings |
-| `CTTDraw.cs` | Procedural textures: map, coins, square/triangle/star markers |
-| `CTTUI.cs` | Small uGUI factory (panels, labels, buttons, fields) |
+| `CTTConfig.cs` | Role metadata, colours and CA/EN strings |
+| `CTTDraw.cs` | Procedural textures: map, coins and the square character marker |
+| `CTTUI.cs` | uGUI factory: panels, labels, buttons, fields and coloured square icons |
 | `CTTHoldButton.cs` | Held-button behaviour for the touch D-pad and sprint |
-| `Editor/CTTSceneSetup.cs` | Editor menu command that builds/wires the scene objects |
+| `Assets/Editor/CTTSceneSetup.cs` | Editor menu command that builds/wires the scene objects |
+
+The runtime scripts now live in `Assets/Scripts/`; this folder keeps the client notes.
 
 ## Design notes
 
@@ -46,8 +49,12 @@ If you ever need to recreate the scene structure, use
 - **World-space 2D:** the map is one sprite generated with `Texture2D.SetPixels32`
   (16 px per tile); coins and players are `SpriteRenderer` objects, and the camera
   follows the local player with smoothing and map-bounds clamping.
-- **Procedural art:** no external image assets. Shape + colour coding (■ parent,
-  ▲ parent, ★ troublemaker), CA/EN toggle, high-contrast mode.
+- **Characters are coloured squares:** every character is a flat coloured square, both
+  in the world and in the UI. The menu has a six-square legend, the lobby shows one
+  large square per role card, and the game HUD has a six-square character strip. The
+  local player gets a thin white frame; high-contrast mode changes the palette.
+- **Procedural art:** no external image assets — map, coins and markers are generated
+  with `Texture2D.SetPixels32`. CA/EN toggle included.
 - **Reconnect:** room code and player ID are kept in `PlayerPrefs`; reloading the
   scene rejoins an in-progress match.
 

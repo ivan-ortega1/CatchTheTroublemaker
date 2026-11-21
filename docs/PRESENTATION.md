@@ -36,8 +36,9 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
 - Motor pur (`engine.js`) → testejable sense HTTP.
 - **Client Unity:** `GameManager` a l'escena coordina `NetworkManager`, `UIManager`,
   `BoardRenderer` i `PlayerController`. El món és 2D de veritat: mapa i actors són
-  `SpriteRenderer` i la càmera ortogràfica segueix el jugador. `DownloadHandlerScript`
-  llegeix el mateix flux SSE que `EventSource` al navegador.
+  `SpriteRenderer` i la càmera ortogràfica segueix el jugador. **Personatges = quadrats
+  de color** al menú, al lobby i al HUD (marc blanc per al jugador local).
+  `DownloadHandlerScript` llegeix el mateix flux SSE que `EventSource` al navegador.
 
 ### 5. El joc en acció (demo, 3 min)
 1. `node server/index.js`.
@@ -58,7 +59,8 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
   la partida dura més i hi ha marge de remuntada.
 
 ### 7. Accessibilitat i usabilitat (45 s)
-- Color **+ forma** (■ pare, ▲ mare, ★ entremaliat) → no depèn només del color.
+- Color **+ forma** al navegador (■ pare, ▲ mare, ★ entremaliat); el client Unity fa
+  servir **quadres de color** amb marc per al jugador local → no depèn només del color.
 - Català/anglès, mida de text, alt contrast, `prefers-reduced-motion`.
 - `aria-live` per a esdeveniments; teclat complet i control tàctil.
 

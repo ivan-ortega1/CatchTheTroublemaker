@@ -291,6 +291,7 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 | Editor script + escena desada | L'usuari veu els objectes a la Hierarchy i pot ajustar valors a l'Inspector (`cameraSize`, `pollInterval`, `SendInterval`). | Tornar a crear-ho tot a `Awake()`. |
 | Còpia temporal del projecte per executar l'editor en *batch* | L'editor de l'usuari estava obert amb el mateix projecte i Unity bloqueja una segona instància. | Tancar l'editor de l'usuari (no acceptable). |
 | `SpriteRenderer` en espai de món | És el que s'espera d'un joc 2D: càmera, profunditat (sorting orders) i objectes que es poden inspeccionar. | Dibuixar el mapa en un `RawImage` de canvas (fase anterior). |
+| **Quadres de color** per a tots els personatges | L'usuari va demanar explicitament "the characters just being colored icon squares". S'han eliminat les formes ■ ▲ ★ i les etiquetes 3D del client Unity: ara el mateix quadrat pla apareix al menú (llegenda de 6), al lobby (una fitxa per rol) i al HUD (tira de 6). El jugador local es distingeix amb un marc blanc. | Formes diferents per rol al client Unity (es conserven al client web). |
 
 ### Resultat i verificació
 

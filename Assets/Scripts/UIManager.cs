@@ -33,6 +33,9 @@ namespace CatchTheTroublemaker
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
         private InputField nameField, serverField, joinField;
         private readonly Button[] roleButtons = new Button[6];
+        private readonly Image[] rosterIcons = new Image[6];
+        private readonly Text[] rosterLabels = new Text[6];
+        private Image hudRoleIcon;
         private Button startButton;
 
         private void Awake() => EnsureBuilt();
@@ -125,31 +128,43 @@ namespace CatchTheTroublemaker
             RectTransform card = CardInner(homePanel, 1040, 900);
             bool ca = game != null && game.Catalan;
 
-            CttUi.Label(At(card, "Title", 1000, 90, 50), "Text", CTTConfig.Tr("title", ca), 58, CttUi.Accent);
-            CttUi.Label(At(card, "Tagline", 1000, 60, 130), "Text", CTTConfig.Tr("tagline", ca), 30, CttUi.Muted);
+            CttUi.Label(At(card, "Title", 1000, 84, 46), "Text", CTTConfig.Tr("title", ca), 58, CttUi.Accent);
+            CttUi.Label(At(card, "Tagline", 1000, 54, 114), "Text", CTTConfig.Tr("tagline", ca), 28, CttUi.Muted);
 
-            CttUi.Label(At(card, "NameCaption", 900, 40, 214), "Text", CTTConfig.Tr("name", ca), 26,
+            // The six characters are introduced as simple coloured squares.
+            RectTransform legend = At(card, "CharacterLegend", 1000, 80, 182);
+            for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
+            {
+                string role = CTTConfig.RoleOrder[i];
+                float x = (i - 2.5f) * 156f;
+                CttUi.Icon(legend, "Icon_" + role, CTTConfig.ColorOf(role), new Vector2(52, 52),
+                    new Vector2(0.5f, 0.5f), new Vector2(x, 10));
+                CttUi.LabelAt(legend, "Code_" + role, CTTConfig.ShortOf(role), 21, CttUi.Muted,
+                    new Vector2(0.5f, 0.5f), new Vector2(110, 26), new Vector2(x, -26));
+            }
+
+            CttUi.Label(At(card, "NameCaption", 900, 36, 250), "Text", CTTConfig.Tr("name", ca), 24,
                 CttUi.Muted, TextAnchor.MiddleLeft);
             nameField = CttUi.Field(card, "Name", "Marta", PlayerPrefs.GetString(CTTConfig.NamePrefKey, ""),
-                new Vector2(0.5f, 1f), new Vector2(900, 64), new Vector2(0, -282));
+                new Vector2(0.5f, 1f), new Vector2(900, 60), new Vector2(0, -306));
 
-            CttUi.Label(At(card, "ServerCaption", 900, 36, 362), "Text", CTTConfig.Tr("server", ca), 24,
+            CttUi.Label(At(card, "ServerCaption", 900, 32, 362), "Text", CTTConfig.Tr("server", ca), 22,
                 CttUi.Muted, TextAnchor.MiddleLeft);
             serverField = CttUi.Field(card, "Server", CTTConfig.DefaultServer, CTTApi.ServerUrl,
-                new Vector2(0.5f, 1f), new Vector2(900, 58), new Vector2(0, -416));
+                new Vector2(0.5f, 1f), new Vector2(900, 56), new Vector2(0, -412));
 
             CttUi.Button(card, "Create", CTTConfig.Tr("create", ca), CttUi.Accent,
                 () => { ApplyServer(); CreateRequested?.Invoke(nameField.text); },
-                new Vector2(0.5f, 1f), new Vector2(900, 76), new Vector2(0, -510));
+                new Vector2(0.5f, 1f), new Vector2(900, 72), new Vector2(0, -500));
 
             joinField = CttUi.Field(card, "JoinCode", "FQJFD", "",
-                new Vector2(0.5f, 1f), new Vector2(560, 64), new Vector2(-170, -610));
+                new Vector2(0.5f, 1f), new Vector2(560, 60), new Vector2(-170, -590));
             CttUi.Button(card, "Join", CTTConfig.Tr("join", ca), CttUi.Accent2,
                 () => { ApplyServer(); JoinRequested?.Invoke(joinField.text.Trim().ToUpperInvariant()); },
-                new Vector2(0.5f, 1f), new Vector2(300, 64), new Vector2(320, -610), 26);
+                new Vector2(0.5f, 1f), new Vector2(300, 60), new Vector2(320, -590), 26);
 
-            CttUi.Label(At(card, "Rules", 960, 160, 712), "Text", CTTConfig.Tr("rules", ca), 24, CttUi.Muted);
-            homeStatus = CttUi.Label(At(card, "Status", 960, 40, 838), "Text", "", 24, CttUi.Danger);
+            CttUi.Label(At(card, "Rules", 960, 150, 700), "Text", CTTConfig.Tr("rules", ca), 22, CttUi.Muted);
+            homeStatus = CttUi.Label(At(card, "Status", 960, 40, 830), "Text", "", 24, CttUi.Danger);
         }
 
         private void BuildLobby()
@@ -158,55 +173,98 @@ namespace CatchTheTroublemaker
             RectTransform card = CardInner(lobbyPanel, 1120, 900);
             bool ca = game != null && game.Catalan;
 
-            CttUi.Label(At(card, "Title", 1000, 70, 40), "Text", CTTConfig.Tr("roomCode", ca), 40, CttUi.Accent);
-            lobbyCode = CttUi.Label(At(card, "Code", 1000, 90, 120), "Text", "", 64, Color.white);
-            lobbyPlayers = CttUi.Label(At(card, "Players", 1000, 50, 210), "Text", "", 28, CttUi.Muted);
-            CttUi.Label(At(card, "RolesCaption", 1000, 50, 290), "Text", CTTConfig.Tr("chooseRole", ca), 26, CttUi.Muted);
+            CttUi.Label(At(card, "Title", 1000, 60, 40), "Text", CTTConfig.Tr("roomCode", ca), 36, CttUi.Accent);
+            lobbyCode = CttUi.Label(At(card, "Code", 1000, 84, 108), "Text", "", 60, Color.white);
+            lobbyPlayers = CttUi.Label(At(card, "Players", 1000, 44, 178), "Text", "", 26, CttUi.Muted);
+            CttUi.Label(At(card, "RolesCaption", 1000, 44, 238), "Text", CTTConfig.Tr("chooseRole", ca), 24, CttUi.Muted);
 
+            // Each role is a card with one big coloured square as the character.
             for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
             {
                 string role = CTTConfig.RoleOrder[i];
-                float x = (i % 3 - 1) * 340f;
-                float y = 370f + (i / 3) * 150f;
-                roleButtons[i] = CttUi.Button(card, "Role_" + role, CTTConfig.RoleName(role, ca),
-                    CTTConfig.ColorOf(role), () => RoleRequested?.Invoke(role),
-                    new Vector2(0.5f, 1f), new Vector2(320, 130), new Vector2(x, -y), 22);
+                float x = (i % 3 - 1) * 360f;
+                float y = 340f + (i / 3) * 170f;
+                Button button = CttUi.Button(card, "Role_" + role, "", CttUi.Panel,
+                    () => RoleRequested?.Invoke(role),
+                    new Vector2(0.5f, 1f), new Vector2(340, 150), new Vector2(x, -y), 22);
+                roleButtons[i] = button;
+
+                CttUi.Icon(button.transform, "Character", CTTConfig.ColorOf(role), new Vector2(78, 78),
+                    new Vector2(0f, 0.5f), new Vector2(60, 8));
+                CttUi.InsetCaption(button, 112f);
             }
 
             startButton = CttUi.Button(card, "Start", CTTConfig.Tr("start", ca), CttUi.Accent,
                 () => StartRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(700, 76), new Vector2(0, -700), 32);
+                new Vector2(0.5f, 1f), new Vector2(700, 72), new Vector2(0, -690), 30);
             CttUi.Button(card, "Leave", CTTConfig.Tr("leave", ca), CttUi.Panel,
                 () => LeaveRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(300, 58), new Vector2(0, -790), 24);
+                new Vector2(0.5f, 1f), new Vector2(300, 56), new Vector2(0, -784), 22);
         }
 
         private void BuildHud()
         {
             hudPanel = CttUi.PanelAt("HudPanel", null, new Color(0f, 0f, 0f, 0f));
             hudPanel.GetComponent<Image>().raycastTarget = false;
+
             RectTransform top = CttUi.Rect("TopBar", hudPanel);
             CttUi.Place(top, new Vector2(0.5f, 1f), new Vector2(1800, 120), new Vector2(0, -90));
-            top.gameObject.AddComponent<Image>().color = new Color(0.04f, 0.06f, 0.16f, 0.82f);
+            Image topBackground = top.gameObject.AddComponent<Image>();
+            topBackground.color = new Color(0.04f, 0.06f, 0.16f, 0.82f);
+            topBackground.raycastTarget = false;
 
             bool ca = game != null && game.Catalan;
-            hudRole = CttUi.LabelAt(top, "Role", "", 30, CttUi.Accent,
-                new Vector2(0f, 0.5f), new Vector2(520, 90), new Vector2(-620, 0), TextAnchor.MiddleLeft);
-            hudLives = CttUi.LabelAt(top, "Lives", "", 28, Color.white,
-                new Vector2(0f, 0.5f), new Vector2(340, 90), new Vector2(-180, 0));
+
+            // Left: the local character is shown as its coloured square.
+            hudRoleIcon = CttUi.Icon(top, "RoleIcon", Color.white, new Vector2(56, 56),
+                new Vector2(0f, 0.5f), new Vector2(70, 0));
+            hudRole = CttUi.LabelAt(top, "Role", "", 28, CttUi.Accent,
+                new Vector2(0f, 0.5f), new Vector2(440, 90), new Vector2(350, 0), TextAnchor.MiddleLeft);
+            hudLives = CttUi.LabelAt(top, "Lives", "", 26, Color.white,
+                new Vector2(0f, 0.5f), new Vector2(220, 90), new Vector2(690, 0));
+
+            // Centre: timer.
             hudTimer = CttUi.LabelAt(top, "Timer", "", 40, Color.white,
-                new Vector2(0.5f, 0.5f), new Vector2(220, 90), Vector2.zero);
-            hudScoreA = CttUi.LabelAt(top, "ScoreA", "", 26, CttUi.Accent2,
-                new Vector2(1f, 0.5f), new Vector2(330, 90), new Vector2(-480, 0));
-            hudScoreB = CttUi.LabelAt(top, "ScoreB", "", 26, CttUi.Accent,
-                new Vector2(1f, 0.5f), new Vector2(330, 90), new Vector2(-160, 0));
-            hudSprint = CttUi.LabelAt(top, "Sprint", "", 24, CttUi.Muted,
-                new Vector2(1f, 0.5f), new Vector2(240, 90), new Vector2(-50, 0));
+                new Vector2(0.5f, 0.5f), new Vector2(180, 90), new Vector2(-60, 0));
 
-            CttUi.LabelAt(hudPanel, "Hint", CTTConfig.Tr("moveHint", ca), 22, CttUi.Muted,
-                new Vector2(0.5f, 0f), new Vector2(1400, 50), new Vector2(0, 60));
+            // Right: family scores, each tagged with its troublemaker's colour square.
+            CttUi.Icon(top, "ScoreAIcon", CTTConfig.ColorOf("fatherA"), new Vector2(36, 36),
+                new Vector2(1f, 0.5f), new Vector2(-670, 0));
+            hudScoreA = CttUi.LabelAt(top, "ScoreA", "", 25, CttUi.Accent2,
+                new Vector2(1f, 0.5f), new Vector2(300, 90), new Vector2(-490, 0), TextAnchor.MiddleLeft);
+            CttUi.Icon(top, "ScoreBIcon", CTTConfig.ColorOf("fatherB"), new Vector2(36, 36),
+                new Vector2(1f, 0.5f), new Vector2(-310, 0));
+            hudScoreB = CttUi.LabelAt(top, "ScoreB", "", 25, CttUi.Accent,
+                new Vector2(1f, 0.5f), new Vector2(260, 90), new Vector2(-130, 0), TextAnchor.MiddleLeft);
 
+            hudSprint = CttUi.LabelAt(hudPanel, "Sprint", "", 24, CttUi.Muted,
+                new Vector2(1f, 1f), new Vector2(320, 50), new Vector2(-170, -190));
+
+            CttUi.LabelAt(hudPanel, "Hint", CTTConfig.Tr("moveHint", ca), 21, CttUi.Muted,
+                new Vector2(0.5f, 0f), new Vector2(1400, 40), new Vector2(0, 36));
+
+            BuildCharacterStrip();
             BuildTouchPad();
+        }
+
+        /// <summary>A row of six coloured squares showing every character at a glance.</summary>
+        private void BuildCharacterStrip()
+        {
+            RectTransform strip = CttUi.Rect("CharacterStrip", hudPanel);
+            CttUi.Place(strip, new Vector2(0.5f, 0f), new Vector2(760, 100), new Vector2(0, 118));
+            Image stripBackground = strip.gameObject.AddComponent<Image>();
+            stripBackground.color = new Color(0.04f, 0.06f, 0.16f, 0.8f);
+            stripBackground.raycastTarget = false;
+
+            for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
+            {
+                string role = CTTConfig.RoleOrder[i];
+                float x = (i - 2.5f) * 122f;
+                rosterIcons[i] = CttUi.Icon(strip, "Icon_" + role, CTTConfig.ColorOf(role),
+                    new Vector2(48, 48), new Vector2(0.5f, 0.5f), new Vector2(x, 12));
+                rosterLabels[i] = CttUi.LabelAt(strip, "Code_" + role, CTTConfig.ShortOf(role), 20,
+                    CttUi.Muted, new Vector2(0.5f, 0.5f), new Vector2(100, 26), new Vector2(x, -28));
+            }
         }
 
         private void BuildTouchPad()
@@ -337,6 +395,7 @@ namespace CatchTheTroublemaker
             }
             hudScoreA.text = (ca ? "Família A  " : "Family A  ") + a + "/" + snapshot.goal;
             hudScoreB.text = (ca ? "Família B  " : "Family B  ") + b + "/" + snapshot.goal;
+            UpdateRoster(snapshot, playerId);
 
             CTTPlayer me = null;
             foreach (CTTPlayer p in snapshot.players ?? Array.Empty<CTTPlayer>())
@@ -345,11 +404,13 @@ namespace CatchTheTroublemaker
             if (me == null)
             {
                 hudRole.text = CTTConfig.Tr("spectator", ca);
+                hudRoleIcon.color = CttUi.Muted;
                 hudLives.text = "";
                 hudSprint.text = "";
                 return;
             }
 
+            hudRoleIcon.color = CTTConfig.ColorOf(me.role, game != null && game.HighContrast);
             hudRole.text = (ca ? "ETS  " : "YOU ARE  ") + CTTConfig.RoleName(me.role, ca);
             bool kids = me.team == "troublemakers";
             hudLives.text = kids
@@ -358,6 +419,26 @@ namespace CatchTheTroublemaker
             hudSprint.text = me.sprintIn > 0.01f
                 ? (ca ? "Esprint " : "Sprint ") + me.sprintIn.ToString("0.0") + "s"
                 : CTTConfig.Tr("ready", ca);
+        }
+
+        /// <summary>Keeps the six coloured character squares in sync with the snapshot.</summary>
+        private void UpdateRoster(CTTState snapshot, string playerId)
+        {
+            bool contrast = game != null && game.HighContrast;
+            foreach (CTTPlayer p in snapshot.players ?? Array.Empty<CTTPlayer>())
+            {
+                int index = Array.FindIndex(CTTConfig.RoleOrder, r => r == p.role);
+                if (index < 0 || index >= rosterIcons.Length || rosterIcons[index] == null) continue;
+
+                Color color = CTTConfig.ColorOf(p.role, contrast);
+                if (p.eliminated) color = Color.Lerp(color, Color.black, 0.55f);
+                rosterIcons[index].color = color;
+                rosterIcons[index].transform.localScale = p.id == playerId
+                    ? Vector3.one * 1.18f : Vector3.one;
+                rosterLabels[index].color = p.id == playerId ? CttUi.Accent : CttUi.Muted;
+                rosterLabels[index].text = CTTConfig.ShortOf(p.role) +
+                    (p.isBot ? " ·" : "") + (p.id == playerId ? " ★" : "");
+            }
         }
 
         public void ShowResult(CTTResult result)

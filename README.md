@@ -26,7 +26,7 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 3. The home screen has a **Server URL** field (default `http://localhost:3000`). Change it to your machine's LAN IP (e.g. `http://192.168.1.20:3000`) when playing from another computer.
 4. Create a room or join with the 5-letter code, pick a role, and let the host start.
 
-All artwork (coins, walls, ■ ▲ ★ player shapes and the map texture) is generated procedurally at runtime — no image assets to import.
+All artwork is generated procedurally at runtime — no image assets to import. In the Unity client every character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). The browser client keeps the ■ ▲ ★ shape coding.
 
 ### Play in a browser
 
@@ -95,7 +95,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
                                       • pure module → unit-testable
 ```
 
-- **Unity client structure:** `GameManager` owns the Home → Lobby → Playing → Result state machine. `NetworkManager` handles REST/SSE/polling, `UIManager` the uGUI overlay, `BoardRenderer` the **world-space 2D** sprites and follow camera, and `PlayerController` the Input System intent. Only intent is sent; positions never are.
+- **Unity client structure:** `GameManager` owns the Home → Lobby → Playing → Result state machine. `NetworkManager` handles REST/SSE/polling, `UIManager` the uGUI overlay, `BoardRenderer` the **world-space 2D** sprites and follow camera, and `PlayerController` the Input System intent. Menu, lobby and game screens all use the same flat coloured-square character language; only intent is sent, positions never are.
 - **Client → server:** small `POST /api/rooms/:code/input` messages carrying only `{dx, dy, sprint}`.
 - **Server → client:** Server-Sent Events stream `hello`, `lobby`, `start`, `state` and `result`. Browsers use `EventSource`; Unity parses the same stream with a custom `DownloadHandlerScript`. Both also poll `/state` as a fallback.
 - **Authority:** neither client decides coins, catches or the winner. Both only draw snapshots.
@@ -174,7 +174,7 @@ A browser smoke test was also performed: a room was created, a role chosen, the 
 | Shared goal | 50 coins, 132 on the map with respawn |
 | Asynchronous communication | Server-Sent Events + input POSTs, polling fallback |
 | Endpoint returning the winner | `GET /api/rooms/:code/result` |
-| Aesthetics / usability / accessibility | Procedural uGUI + canvas UI, CA/EN, keyboard + touch, ARIA live toasts (browser), high contrast, text sizing (browser), shape+colour coding, reduced motion (browser) |
+| Aesthetics / usability / accessibility | Procedural uGUI + canvas UI, CA/EN, keyboard + touch, ARIA live toasts (browser), high contrast, text sizing (browser), coloured-square characters (Unity) + shape coding (browser), reduced motion (browser) |
 | Developed with AI agents and documented | This repository + `docs/AI_PROCESS.md` + `docs/PRESENTATION.md` |
 | Git | Repository initialised; commits at each milestone |
 
