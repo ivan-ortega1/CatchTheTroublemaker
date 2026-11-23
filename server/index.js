@@ -11,6 +11,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
+import dgram from 'node:dgram';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -486,17 +487,35 @@ function lanAddresses() {
   const addresses = [];
   for (const list of Object.values(os.networkInterfaces())) {
     for (const net of list || []) {
-      if (net.family === 'IPv4' && !net.internal) addresses.push(net.address);
+      // Skip loopback and link-local (APIPA) addresses: they cannot be shared.
+      if (net.family === 'IPv4' && !net.internal && !net.address.startsWith('169.254.')) {
+        addresses.push(net.address);
+      }
     }
   }
   return [...new Set(addresses)];
 }
 
-server.listen(PORT, () => {
+/** The address the OS would use to reach the internet = the useful LAN address. */
+function primaryLanAddress() {
+  return new Promise((resolve) => {
+    const socket = dgram.createSocket('udp4');
+    socket.once('error', () => { socket.close(); resolve(null); });
+    socket.connect(80, '8.8.8.8', () => {
+      const address = socket.address().address;
+      socket.close();
+      resolve(address === '127.0.0.1' ? null : address);
+    });
+  });
+}
+
+server.listen(PORT, async () => {
   console.log(`Catch the Troublemaker -> http://localhost:${PORT}`);
+  const primary = await primaryLanAddress();
+  if (primary) console.log(`  SHARE THIS: http://${primary}:${PORT}   (same Wi-Fi / LAN)`);
   for (const ip of lanAddresses()) {
-    console.log(`  LAN: http://${ip}:${PORT}   (same Wi-Fi only)`);
+    if (ip !== primary) console.log(`  LAN: http://${ip}:${PORT}   (same Wi-Fi only)`);
   }
-  console.log('For players on mobile data / another network, publish this port with a tunnel or cloud host.');
+  console.log('Players on mobile data / another network need a public tunnel URL or a cloud host.');
   console.log(`REST + SSE ready.coinGoal=${CONFIG.coinGoal} tick=${CONFIG.tickMs}ms`);
 });

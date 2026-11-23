@@ -22,6 +22,9 @@ If you ever need to recreate the scene structure, use
 
 ## Connecting from another network
 
+See [docs/NETWORKING.md](../../docs/NETWORKING.md) for the full step-by-step guide
+(LAN, mobile data, Cloudflare Tunnel / ngrok / cloud hosting).
+
 `localhost` always means **the device running the Unity client**. It only works when
 the Node server runs on that same machine. The **TEST** button next to Server URL
 checks `GET /api/health` without creating a room; the server prints its LAN addresses
