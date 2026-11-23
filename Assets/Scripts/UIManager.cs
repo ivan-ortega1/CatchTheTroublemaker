@@ -61,8 +61,14 @@ namespace CatchTheTroublemaker
 
         private void ApplyServer()
         {
-            if (serverField != null && !string.IsNullOrWhiteSpace(serverField.text))
-                CTTApi.ServerUrl = serverField.text;
+            if (serverField == null) return;
+            string value = (serverField.text ?? "").Trim();
+            if (value.Length == 0) return;
+            if (!value.StartsWith("http://", System.StringComparison.OrdinalIgnoreCase) &&
+                !value.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase))
+                value = "http://" + value;
+            if (serverField.text != value) serverField.text = value;
+            CTTApi.ServerUrl = value;
         }
 
         /* ----------------------------- construction ----------------------------- */
@@ -159,6 +165,9 @@ namespace CatchTheTroublemaker
                 CttUi.Muted, TextAnchor.MiddleLeft);
             serverField = CttUi.Field(card, "Server", CTTConfig.DefaultServer, CTTApi.ServerUrl,
                 new Vector2(0.5f, 1f), new Vector2(630, 56), new Vector2(-135, -412));
+            // Commit as soon as the field loses focus or Enter is pressed, so the URL
+            // is stored even if the player never presses TEST/Create/Join.
+            serverField.onEndEdit.AddListener(_ => ApplyServer());
             CttUi.Button(card, "TestConnection", CTTConfig.Tr("test", ca), CttUi.Panel,
                 () => { ApplyServer(); ConnectionTestRequested?.Invoke(); },
                 new Vector2(0.5f, 1f), new Vector2(190, 56), new Vector2(415, -412), 22);
