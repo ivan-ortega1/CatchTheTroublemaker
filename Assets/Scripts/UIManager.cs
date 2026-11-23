@@ -20,6 +20,10 @@ namespace CatchTheTroublemaker
         public event Action ContrastToggled;
         public event Action ConnectionTestRequested;
         public event Action DiscoveryRequested;
+        public event Action P2pModeToggled;
+
+        /// <summary>True when the home screen is configured for hostless LAN play.</summary>
+        public bool P2pMode { get; private set; }
 
         public int TouchX { get; private set; }
         public int TouchY { get; private set; }
@@ -34,12 +38,32 @@ namespace CatchTheTroublemaker
             if (serverField != null) serverField.text = url;
         }
 
+        /// <summary>Switches the home screen between server and hostless P2P play.</summary>
+        public void SetP2pMode(bool enabled)
+        {
+            P2pMode = enabled;
+            EnsureBuilt();
+            bool ca = game != null && game.Catalan;
+            if (serverCaptionLabel != null)
+                serverCaptionLabel.text = enabled ? CTTConfig.Tr("p2pServer", ca) : CTTConfig.Tr("server", ca);
+            if (modeLabel != null)
+                modeLabel.text = CTTConfig.Tr(enabled ? "modeP2p" : "modeServer", ca);
+            if (createLabel != null)
+                createLabel.text = CTTConfig.Tr(enabled ? "createP2p" : "create", ca);
+            if (serverField != null) serverField.gameObject.SetActive(!enabled);
+            if (findButton != null) findButton.gameObject.SetActive(!enabled);
+            if (testButton != null) testButton.gameObject.SetActive(!enabled);
+            Toast(enabled ? CTTConfig.Tr("p2pHint", ca) : "");
+        }
+
         private GameManager game;
         private GamePhase phase;
         private Canvas canvas;
         private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
         private Text toast, homeStatus, lobbyCode, lobbyPlayers, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
+        private Text modeLabel, serverCaptionLabel, createLabel;
+        private Button modeButton, findButton, testButton, createButton;
         private InputField nameField, serverField, joinField;
         private readonly Button[] roleButtons = new Button[6];
         private readonly Image[] rosterIcons = new Image[6];
@@ -120,6 +144,8 @@ namespace CatchTheTroublemaker
             var toastHolder = CttUi.Rect("ToastHolder", canvas.transform);
             CttUi.Place(toastHolder, new Vector2(0.5f, 1f), new Vector2(1100, 54), new Vector2(0, -128));
             toast = CttUi.Label(toastHolder, "Toast", "", 26, CttUi.Accent);
+
+            if (P2pMode) SetP2pMode(true);
         }
 
         private static RectTransform At(RectTransform parent, string name, float width, float height,
@@ -169,23 +195,28 @@ namespace CatchTheTroublemaker
             nameField = CttUi.Field(card, "Name", "Marta", PlayerPrefs.GetString(CTTConfig.NamePrefKey, ""),
                 new Vector2(0.5f, 1f), new Vector2(900, 60), new Vector2(0, -306));
 
-            CttUi.Label(At(card, "ServerCaption", 900, 32, 362), "Text", CTTConfig.Tr("server", ca), 22,
-                CttUi.Muted, TextAnchor.MiddleLeft);
+            serverCaptionLabel = CttUi.Label(At(card, "ServerCaption", 900, 32, 362), "Text",
+                CTTConfig.Tr("server", ca), 22, CttUi.Muted, TextAnchor.MiddleLeft);
             serverField = CttUi.Field(card, "Server", CTTConfig.DefaultServer, CTTApi.ServerUrl,
-                new Vector2(0.5f, 1f), new Vector2(630, 56), new Vector2(-135, -412));
+                new Vector2(0.5f, 1f), new Vector2(470, 56), new Vector2(-265, -412));
             // Commit as soon as the field loses focus or Enter is pressed, so the URL
             // is stored even if the player never presses TEST/Create/Join.
             serverField.onEndEdit.AddListener(_ => ApplyServer());
-            CttUi.Button(card, "FindLan", CTTConfig.Tr("find", ca), CttUi.Panel,
+            findButton = CttUi.Button(card, "FindLan", CTTConfig.Tr("find", ca), CttUi.Panel,
                 () => DiscoveryRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(130, 56), new Vector2(250, -412), 17);
-            CttUi.Button(card, "TestConnection", CTTConfig.Tr("test", ca), CttUi.Panel,
+                new Vector2(0.5f, 1f), new Vector2(110, 56), new Vector2(-5, -412), 15);
+            testButton = CttUi.Button(card, "TestConnection", CTTConfig.Tr("test", ca), CttUi.Panel,
                 () => { ApplyServer(); ConnectionTestRequested?.Invoke(); },
-                new Vector2(0.5f, 1f), new Vector2(190, 56), new Vector2(415, -412), 22);
+                new Vector2(0.5f, 1f), new Vector2(150, 56), new Vector2(135, -412), 20);
+            modeButton = CttUi.Button(card, "Mode", "", CttUi.Accent2,
+                () => P2pModeToggled?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(190, 56), new Vector2(315, -412), 16);
+            modeLabel = modeButton.GetComponentInChildren<Text>();
 
-            CttUi.Button(card, "Create", CTTConfig.Tr("create", ca), CttUi.Accent,
+            createButton = CttUi.Button(card, "Create", CTTConfig.Tr("create", ca), CttUi.Accent,
                 () => { ApplyServer(); CreateRequested?.Invoke(nameField.text); },
                 new Vector2(0.5f, 1f), new Vector2(900, 72), new Vector2(0, -500));
+            createLabel = createButton.GetComponentInChildren<Text>();
 
             joinField = CttUi.Field(card, "JoinCode", "FQJFD", "",
                 new Vector2(0.5f, 1f), new Vector2(560, 60), new Vector2(-170, -590));

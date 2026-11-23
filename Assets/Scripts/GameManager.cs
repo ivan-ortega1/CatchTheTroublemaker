@@ -36,6 +36,7 @@ namespace CatchTheTroublemaker
         public CTTResult Result { get; private set; }
 
         private CttLanDiscovery discovery;
+        private P2PGame p2p;
         private float nextInputAt;
 
         private void Awake()
@@ -80,9 +81,18 @@ namespace CatchTheTroublemaker
             ui.ContrastToggled += ToggleContrast;
             ui.ConnectionTestRequested += TestConnection;
             ui.DiscoveryRequested += () => FindLanServer(false);
+            ui.P2pModeToggled += ToggleP2pMode;
 
             discovery = GetComponent<CttLanDiscovery>();
             if (discovery == null) discovery = gameObject.AddComponent<CttLanDiscovery>();
+
+            // Hostless mode runs the exact same engine locally on every peer.
+            p2p = GetComponent<P2PGame>();
+            if (p2p == null) p2p = gameObject.AddComponent<P2PGame>();
+            p2p.LobbyChanged += OnP2pLobby;
+            p2p.StateChanged += OnStateReceived;
+            p2p.ResultChanged += OnResultReceived;
+            p2p.Error += error => ui.Toast(error);
 
             ui.Initialize(this);
             board.Initialize(HighContrast);
@@ -119,8 +129,21 @@ namespace CatchTheTroublemaker
 
         private void Update()
         {
-            if (Phase != GamePhase.Playing || network == null || playerInput == null) return;
-            if (Time.unscaledTime < nextInputAt) return;
+            if (Phase != GamePhase.Playing || playerInput == null) return;
+
+            // In P2P mode every peer feeds its own input straight into the local
+            // lockstep simulation; no HTTP request is involved.
+            if (ui.P2pMode)
+            {
+                if (p2p != null && p2p.IsActive)
+                {
+                    Vector3 localIntent = playerInput.ReadIntent();
+                    p2p.SetLocalInput((int)localIntent.x, (int)localIntent.y, localIntent.z > 0.5f);
+                }
+                return;
+            }
+
+            if (network == null || Time.unscaledTime < nextInputAt) return;
 
             nextInputAt = Time.unscaledTime + playerInput.SendInterval;
             Vector3 intent = playerInput.ReadIntent();
@@ -138,6 +161,16 @@ namespace CatchTheTroublemaker
 
         private void EnterGame()
         {
+            if (ui.P2pMode && p2p != null && p2p.IsActive)
+            {
+                RoomCode = p2p.RoomCode;
+                PlayerId = p2p.PlayerId;
+                SetPhase(GamePhase.Playing);
+                board.SetFollowTarget(PlayerId);
+                nextInputAt = 0f;
+                return;
+            }
+
             network.SetRoom(RoomCode, PlayerId);
             SetPhase(GamePhase.Playing);
             board.SetFollowTarget(PlayerId);
@@ -152,6 +185,15 @@ namespace CatchTheTroublemaker
             string name = Sanitize(rawName);
             PlayerPrefs.SetString(CTTConfig.NamePrefKey, name);
             PlayerPrefs.Save();
+
+            if (ui.P2pMode)
+            {
+                SetPhase(GamePhase.Lobby);
+                p2p.Create(name);
+                RoomCode = p2p.RoomCode;
+                PlayerId = p2p.PlayerId;
+                return;
+            }
 
             network.CreateRoom(name, response =>
             {
@@ -177,6 +219,21 @@ namespace CatchTheTroublemaker
             }
 
             string name = Sanitize(ui.PlayerName);
+
+            if (ui.P2pMode)
+            {
+                SetPhase(GamePhase.Lobby);
+                p2p.Join(code, name);
+                if (!p2p.IsActive)
+                {
+                    SetPhase(GamePhase.Home);
+                    return;
+                }
+                RoomCode = p2p.RoomCode;
+                PlayerId = p2p.PlayerId;
+                return;
+            }
+
             network.Join(code, name, reconnect ? PlayerId : null, response =>
             {
                 RoomCode = response.code;
@@ -206,6 +263,11 @@ namespace CatchTheTroublemaker
 
         private void SelectRole(string role)
         {
+            if (ui.P2pMode && p2p != null && p2p.IsActive)
+            {
+                p2p.SetRole(role);
+                return;
+            }
             network.SetRole(RoomCode, PlayerId, role, response =>
             {
                 Lobby = response.lobby;
@@ -213,9 +275,17 @@ namespace CatchTheTroublemaker
             }, Fail);
         }
 
-        private void StartMatch() => RequestMatch("/start");
+        private void StartMatch()
+        {
+            if (ui.P2pMode && p2p != null && p2p.IsActive) { p2p.StartMatch(); return; }
+            RequestMatch("/start");
+        }
 
-        private void Rematch() => RequestMatch("/restart");
+        private void Rematch()
+        {
+            if (ui.P2pMode && p2p != null && p2p.IsActive) { p2p.Rematch(); return; }
+            RequestMatch("/restart");
+        }
 
         private void RequestMatch(string action)
         {
@@ -228,6 +298,7 @@ namespace CatchTheTroublemaker
 
         private void LeaveRoom()
         {
+            if (p2p != null && p2p.IsActive) p2p.Leave();
             network.Stop();
             ClearSession();
             RoomCode = null;
@@ -245,6 +316,13 @@ namespace CatchTheTroublemaker
         {
             Lobby = lobby;
             if (Phase == GamePhase.Lobby) ui.RenderLobby(lobby, PlayerId);
+        }
+
+        private void OnP2pLobby(CTTLobby lobby)
+        {
+            Lobby = lobby;
+            if (Phase == GamePhase.Lobby)
+                ui.RenderLobby(lobby, p2p == null ? PlayerId : p2p.PlayerId);
         }
 
         private void OnStateReceived(CTTState snapshot)
@@ -284,6 +362,17 @@ namespace CatchTheTroublemaker
         }
 
         /* ----------------------------- preferences ----------------------------- */
+
+        private void ToggleP2pMode()
+        {
+            if (Phase != GamePhase.Home)
+            {
+                ui.Toast(CTTConfig.Tr("backHome", Catalan));
+                return;
+            }
+            if (p2p != null && p2p.IsActive) p2p.Leave();
+            ui.SetP2pMode(!ui.P2pMode);
+        }
 
         private void TestConnection()
         {

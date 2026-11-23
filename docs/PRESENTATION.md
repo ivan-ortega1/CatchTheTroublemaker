@@ -72,6 +72,9 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
   conservant el servidor Node com a backend (l'enunciat demana endpoint i multi-màquina).
 - **Tercer prompt:** "un joc 2D normal de Unity, amb un GameManager" → es va refactoritzar
   el client en managers especialitzats i es va muntar l'escena a la Hierarchy.
+- **Quart prompt:** "full peer-to-peer, no host" → es va afegir un mode P2P amb motor
+  determinista en C#, descobriment LAN i lockstep; l'endpoint del guanyador queda només
+  al mode servidor opcional, tal com va decidir l'usuari.
 - No es va copiar la primera resposta: es van investigar SSE, BFS, PRNG i `node --test`.
 
 ### 9. Iteracions (1 min) — "què va fallar"
@@ -98,7 +101,9 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
 ### Preguntes probables
 - *Per què SSE i no WebSocket?* → només cal push unidireccional; HTTP pur i reconnexió automàtica.
 - *I si un jugador no connecta?* → els rols lliures els agafen bots.
-- *Es pot falsejar la victòria des del client?* → no: el motor del servidor decideix.
+- *Es pot falsejar la victòria des del client?* → al mode servidor no (el motor del
+  servidor decideix); al mode P2P tots els peers calculen el mateix resultat amb el
+  mateix motor determinista, sense endpoint.
 - *On es desa la partida?* → `data/matches.jsonl`; opcional, no obligatori a l'enunciat.
 - *Per què Unity i Node alhora?* → Unity és el client que demanava l'usuari; Node conserva l'endpoint, l'asíncron i el jugable entre màquines.
 - *Cal importar sprites?* → no: monedes, parets, mapa i formes es generen amb `Texture2D` en temps d'execució.

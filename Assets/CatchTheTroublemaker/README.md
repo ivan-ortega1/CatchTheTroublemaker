@@ -20,6 +20,13 @@ Node.js server as the browser client in `public/`.
 If you ever need to recreate the scene structure, use
 **Tools > Catch the Troublemaker > Setup Scene** in the editor.
 
+## Peer-to-peer (no server)
+
+Press **MODE: ONLINE** until it reads **MODE: P2P** on the Home screen. One player
+creates a 5-letter room, the others join with that code, and everyone starts when
+ready. Peers on the same LAN find each other via UDP 3002 and connect directly over
+TCP; there is no host and no HTTP winner endpoint. See [docs/P2P.md](../../docs/P2P.md).
+
 ## Connecting from another network
 
 See [docs/NETWORKING.md](../../docs/NETWORKING.md) for the full step-by-step guide

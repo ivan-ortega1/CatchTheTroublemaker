@@ -2,12 +2,15 @@
 
 A hyper-casual **multiplayer** game for 2–6 players on different machines. Two families share one randomly generated map: parents chase their own child, troublemakers collect coins and try to escape.
 
-Two clients share the same authoritative Node.js backend:
+Two clients are available:
 
 - **Unity Universal 2D client** — the project in this folder (`Assets/CatchTheTroublemaker`).
-- **Browser client** — a dependency-free HTML5 fallback in `public/`.
+  It supports both an authoritative Node backend **and a hostless P2P mode** for
+  machines on the same network (no server, no host, no winner endpoint).
+- **Browser client** — a dependency-free HTML5 fallback in `public/` (server mode only).
 
-The server has **no npm dependencies** and no build step.
+The server has **no npm dependencies** and no build step. See [docs/P2P.md](docs/P2P.md)
+for peer-to-peer play.
 
 ---
 
@@ -27,6 +30,15 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 4. Other machines on the same network find the server automatically (UDP LAN discovery) — the Home screen also has a **FIND LAN** button. Create a room or join with the 5-letter code, pick a role, and let the host start. The server prints the shareable LAN URL when it starts. See [docs/NETWORKING.md](docs/NETWORKING.md) for same-Wi-Fi, mobile-data and public tunnel setup.
 
 All artwork is generated procedurally at runtime — no image assets to import. In the Unity client every character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). In the world, characters keep those exact role colours and coins are bright **yellow circles**. The browser client keeps the ■ ▲ ★ shape coding.
+
+### Play peer-to-peer (no server)
+
+On every machine, press **MODE: ONLINE** on the Home screen until it reads **MODE: P2P**.
+One player presses **CREATE P2P ROOM** and shares the 5-letter code; the others join
+with that code. Peers on the same LAN discover each other automatically, choose a
+seed and player list without a host, and run the same deterministic simulation in
+lockstep. Every peer computes the same winner locally — the HTTP result endpoint is
+not used. Full details: [docs/P2P.md](docs/P2P.md).
 
 ### Play in a browser
 
@@ -108,7 +120,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | `server/index.js` | HTTP routes, SSE, room lifecycle, match persistence |
 | `server/engine.js` | Deterministic map generation, movement, rules, bots, snapshots |
 | `server/config.js` | All balance constants and role metadata |
-| `Assets/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, JSON DTOs, procedural art and uGUI screens |
+| `Assets/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, LAN discovery, hostless P2P transport/engine/lockstep, JSON DTOs, procedural art and uGUI screens |
 | `Assets/CatchTheTroublemaker/Editor/CTTSceneSetup.cs` | Editor command that builds/wires the `GameManager` scene hierarchy |
 | `public/index.html` | Four screens: home, lobby, game, result |
 | `public/styles.css` | Responsive dark UI, high-contrast and reduced-motion support |

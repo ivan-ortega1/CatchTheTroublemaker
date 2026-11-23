@@ -299,6 +299,8 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 | **Joc entre xarxes** | Per jugar des d'una altra màquina cal la IP LAN de l'amfitrió; per a dades mòbils cal una URL pública (túnel Cloudflare/ngrok o hostatge al núvol). S'ha creat `docs/NETWORKING.md` i el servidor detecta l'IP primària amb un socket UDP (sense enviar dades) per imprimir un únic `SHARE THIS`. | Imprimir totes les IP, incloses les virtuals/APIPA, i que l'usuari triï la incorrecta. |
 | **Descobriment LAN automàtic** | L'usuari no aconseguia escriure la IP a la segona màquina (PlayerPrefs conservava `localhost`/port 4000). S'ha afegit un servidor UDP a la porta 3001 que respon a `CTT_DISCOVER` amb la URL HTTP, i un client Unity que ho detecta en arrencar si `localhost` falla, més el botó **FIND LAN**. Així qualsevol màquina de la mateixa xarxa troba l'amfitrió sense configuració. | Dependre que l'usuari copiï manualment una IP (fràgil: ports antics, `localhost`, errors de tecleig). |
 | **Colors de personatge idèntics al menú** | S'han eliminat els tintats de *grace* i *sprint* als `SpriteRenderer` perquè l'usuari va demanar "the same colors like when selecting in the menu". El jugador local es distingeix només amb el marc blanc. Totes les icones UI (menú, lobby, HUD) fan servir la mateixa paleta i el mateix estat de contrast. | Barrejar colors amb blanc/groc segons l'estat del jugador. |
+| **Mode P2P sense amfitrió** | L'usuari va demanar "full peer-to-peer, no host" i va acceptar eliminar l'endpoint del guanyador. S'ha portat `server/engine.js` a C# (`P2PEngine.cs`), s'ha afegit descobriment UDP + malla TCP (`P2PTransport.cs`) i lockstep a 20 Hz (`P2PGame.cs`). La llavor és XOR de les llavors de tots els peers i les decisions empatades es resolen per id més baix: cap amfitrió permanent. El guanyador es calcula localment a cada màquina. | Dependre d'un Node sempre viu; o fer que un client "amfitrió" decidís la simulació (encara seria un servidor). |
+| **Paritat motor JS/C#** | Per evitar que el port canviés l'equilibri, s'ha executat el motor C# amb un *stub* de UnityEngine i s'ha comparat amb `server/engine.js` durant 400 ticks: mateix mapa, monedes, vides i posicions, tant amb 6 humans com amb 2 humans + 4 bots. | Suposar que el port era correcte sense comparar-lo. |
 
 ### Resultat i verificació
 
@@ -318,6 +320,9 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
   quadrats amb el color exacte de la selecció de rol.
 - Iteració de xarxa: compilació 0 errors i `npm test` 15/15; arrencada del servidor
   al port 3999 verifica que ara mostra les IP LAN disponibles.
+- Iteració P2P: compilació 0 errors de tots els scripts (inclosos `P2PEngine`,
+  `P2PTransport`, `P2PGame`); prova de paritat JS↔C# de 400 ticks amb 6 humans i amb
+  2 humans + 4 bots → resultats idèntics. `docs/P2P.md` descriu el protocol i els límits.
 - Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
   el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
   `GET /api/rooms/<cod>/result` respon correctament.
