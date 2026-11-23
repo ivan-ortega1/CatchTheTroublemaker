@@ -77,6 +77,7 @@ namespace CatchTheTroublemaker
             ui.LeaveRequested += LeaveRoom;
             ui.LanguageToggled += ToggleLanguage;
             ui.ContrastToggled += ToggleContrast;
+            ui.ConnectionTestRequested += TestConnection;
 
             ui.Initialize(this);
             board.Initialize(HighContrast);
@@ -272,6 +273,14 @@ namespace CatchTheTroublemaker
         }
 
         /* ----------------------------- preferences ----------------------------- */
+
+        private void TestConnection()
+        {
+            ui.Toast(CTTConfig.Tr("testing", Catalan));
+            network.TestConnection(
+                _ => ui.Toast(CTTConfig.Tr("connectionOk", Catalan)),
+                Fail);
+        }
 
         private void ToggleLanguage()
         {

@@ -18,6 +18,7 @@ namespace CatchTheTroublemaker
         public event Action LeaveRequested;
         public event Action LanguageToggled;
         public event Action ContrastToggled;
+        public event Action ConnectionTestRequested;
 
         public int TouchX { get; private set; }
         public int TouchY { get; private set; }
@@ -157,7 +158,10 @@ namespace CatchTheTroublemaker
             CttUi.Label(At(card, "ServerCaption", 900, 32, 362), "Text", CTTConfig.Tr("server", ca), 22,
                 CttUi.Muted, TextAnchor.MiddleLeft);
             serverField = CttUi.Field(card, "Server", CTTConfig.DefaultServer, CTTApi.ServerUrl,
-                new Vector2(0.5f, 1f), new Vector2(900, 56), new Vector2(0, -412));
+                new Vector2(0.5f, 1f), new Vector2(630, 56), new Vector2(-135, -412));
+            CttUi.Button(card, "TestConnection", CTTConfig.Tr("test", ca), CttUi.Panel,
+                () => { ApplyServer(); ConnectionTestRequested?.Invoke(); },
+                new Vector2(0.5f, 1f), new Vector2(190, 56), new Vector2(415, -412), 22);
 
             CttUi.Button(card, "Create", CTTConfig.Tr("create", ca), CttUi.Accent,
                 () => { ApplyServer(); CreateRequested?.Invoke(nameField.text); },

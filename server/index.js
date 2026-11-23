@@ -10,6 +10,7 @@
 
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -481,7 +482,21 @@ setInterval(() => {
   }
 }, CONFIG.tickMs);
 
+function lanAddresses() {
+  const addresses = [];
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const net of list || []) {
+      if (net.family === 'IPv4' && !net.internal) addresses.push(net.address);
+    }
+  }
+  return [...new Set(addresses)];
+}
+
 server.listen(PORT, () => {
   console.log(`Catch the Troublemaker -> http://localhost:${PORT}`);
+  for (const ip of lanAddresses()) {
+    console.log(`  LAN: http://${ip}:${PORT}   (same Wi-Fi only)`);
+  }
+  console.log('For players on mobile data / another network, publish this port with a tunnel or cloud host.');
   console.log(`REST + SSE ready.coinGoal=${CONFIG.coinGoal} tick=${CONFIG.tickMs}ms`);
 });

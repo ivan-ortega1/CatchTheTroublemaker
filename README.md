@@ -23,8 +23,8 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 
 1. Open this folder in Unity 6000.6.9f1 (the Universal 2D template).
 2. Open `Assets/Scenes/SampleScene.unity` and press **Play**. The scene already contains a **`GameManager`** object with `Network`, `UI`, `World` and `Input` children, an orthographic follow camera and an `EventSystem` — it is a conventional Unity scene, not a runtime bootstrap. (Use **Tools > Catch the Troublemaker > Setup Scene** to recreate that wiring.)
-3. The home screen has a **Server URL** field (default `http://localhost:3000`). Change it to your machine's LAN IP (e.g. `http://192.168.1.20:3000`) when playing from another computer.
-4. Create a room or join with the 5-letter code, pick a role, and let the host start.
+3. The home screen has a **Server URL** field (default `http://localhost:3000`) and a **TEST** button. `localhost` only works when the server runs on that same device; use the host's LAN IP (e.g. `http://192.168.1.20:3000`) on the same Wi-Fi. On **mobile data or another network**, publish port 3000 through a tunnel/cloud host and use that public URL instead — a LAN IP cannot be reached from mobile data.
+4. Create a room or join with the 5-letter code, pick a role, and let the host start. The server prints all usable LAN URLs when it starts.
 
 All artwork is generated procedurally at runtime — no image assets to import. In the Unity client every character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). In the world, characters keep those exact role colours and coins are bright **yellow circles**. The browser client keeps the ■ ▲ ★ shape coding.
 
@@ -108,7 +108,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | `server/index.js` | HTTP routes, SSE, room lifecycle, match persistence |
 | `server/engine.js` | Deterministic map generation, movement, rules, bots, snapshots |
 | `server/config.js` | All balance constants and role metadata |
-| `Assets/CatchTheTroublemaker/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, JSON DTOs, procedural art and uGUI screens |
+| `Assets/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, JSON DTOs, procedural art and uGUI screens |
 | `Assets/CatchTheTroublemaker/Editor/CTTSceneSetup.cs` | Editor command that builds/wires the `GameManager` scene hierarchy |
 | `public/index.html` | Four screens: home, lobby, game, result |
 | `public/styles.css` | Responsive dark UI, high-contrast and reduced-motion support |

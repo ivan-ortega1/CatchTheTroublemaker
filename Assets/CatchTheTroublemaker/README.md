@@ -20,6 +20,28 @@ Node.js server as the browser client in `public/`.
 If you ever need to recreate the scene structure, use
 **Tools > Catch the Troublemaker > Setup Scene** in the editor.
 
+## Connecting from another network
+
+`localhost` always means **the device running the Unity client**. It only works when
+the Node server runs on that same machine. The **TEST** button next to Server URL
+checks `GET /api/health` without creating a room; the server prints its LAN addresses
+on startup:
+
+```
+Catch the Troublemaker -> http://localhost:3000
+  LAN: http://192.168.1.20:3000   (same Wi-Fi only)
+```
+
+- **Same Wi-Fi / LAN:** use one of those LAN URLs on every player's device and allow
+  port 3000 through the host's firewall. Mobile data counts as a *different* network,
+  so a LAN IP will not work there.
+- **Mobile data / different place:** the server must be reachable publicly — publish
+  port 3000 with a tunnel (Cloudflare Tunnel, ngrok, localtunnel, …) or deploy the
+  Node server to a cloud host, then paste that HTTPS/HTTP URL into **Server URL**.
+- The lobby keeps polling every 350 ms, so it recovers automatically when connectivity
+  returns. If you changed networks while a room was open, go **Leave → Home**, set the
+  new Server URL, press **TEST**, then create or join again.
+
 ## Scripts
 
 | File | Responsibility |

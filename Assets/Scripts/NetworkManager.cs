@@ -131,6 +131,10 @@ namespace CatchTheTroublemaker
             }, error => ErrorReceived?.Invoke(error));
         }
 
+        /// <summary>Checks the configured URL without creating or joining a room.</summary>
+        public void TestConnection(Action<string> ok, Action<string> fail) =>
+            Api.Get("/api/health", json => ok?.Invoke(json), fail);
+
         private static void Parse<T>(string json, Action<T> ok, Action<string> fail) where T : class
         {
             var response = JsonUtility.FromJson<T>(json);

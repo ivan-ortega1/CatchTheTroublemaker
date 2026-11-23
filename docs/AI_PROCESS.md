@@ -295,6 +295,7 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 | **Tots els panels fills del Canvas** | Bug detectat en provar l'escena: només es veien els botons CA/EN perquè `Card()` i `HudPanel` es creaven amb `parent = null` (arrel de l'escena). uGUI no renderitza `Graphic` que no estigui dins d'un `Canvas`. Ara tots els panels reben `canvas.transform` i els botons globals s'afegeixen al final per quedar per sobre. | Continuar afegint `Graphic` a l'arrel i esperar que el `ScreenSpaceOverlay` els trobi. |
 | **Sense fons opac global al Canvas** | Segon bug del mateix prova: un `Image` opac a pantalla completa creat a `Build()` tapava tot el món 2D durant la partida (l'overlay es dibuixa per sobre de l'escena). Cada panell de menú/lobby/resultat ja té el seu propi fons; s'ha eliminat el global i el HUD és transparent. | Fer transparent el fons només en jugar (fràgil: qualsevol estat nou el tornava a posar opac). |
 | **Monedes = cercles grocs** | L'usuari va demanar "display the coins as yellow circles". `CTTDraw.Coin()` ara és un disc groc brillant amb vora més fosca i un reflex; les monedes s'han fet una mica més grans. | El disc amb vora marró de la versió anterior. |
+| **Diagnòstic de connexió** | L'usuari va veure "cannot connect to destination host" en canviar a dades mòbils. El problema no és codi sinó adreçament: `localhost` és el dispositiu client. S'ha afegit un botó **TEST** (`GET /api/health`), un missatge accionable al `CTTApi`, i el servidor ara imprimeix les IP LAN en arrencar. | Deixar l'error brut d'`UnityWebRequest` i esperar que l'usatori endevini què és `localhost`. |
 | **Colors de personatge idèntics al menú** | S'han eliminat els tintats de *grace* i *sprint* als `SpriteRenderer` perquè l'usuari va demanar "the same colors like when selecting in the menu". El jugador local es distingeix només amb el marc blanc. Totes les icones UI (menú, lobby, HUD) fan servir la mateixa paleta i el mateix estat de contrast. | Barrejar colors amb blanc/groc segons l'estat del jugador. |
 
 ### Resultat i verificació
@@ -313,6 +314,8 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
   jugadors), `ApplyState` actualitza actors també amb snapshots sense `map`, i s'usa
   un material `Sprite-Unlit` compatible amb URP. Monedes = cercles grocs; jugadors =
   quadrats amb el color exacte de la selecció de rol.
+- Iteració de xarxa: compilació 0 errors i `npm test` 15/15; arrencada del servidor
+  al port 3999 verifica que ara mostra les IP LAN disponibles.
 - Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
   el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
   `GET /api/rooms/<cod>/result` respon correctament.
