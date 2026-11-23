@@ -439,6 +439,11 @@ const server = http.createServer(async (req, res) => {
     });
     return res.end();
   }
+  // Log commands (not the 15 Hz state/input traffic) with the caller's address.
+  // This makes "cannot reach server" reports diagnosable: no line = network/firewall.
+  if (!/\/input$|\/state$|\/events$/.test(url.pathname)) {
+    console.log(`[http] ${req.method} ${url.pathname} <- ${req.socket.remoteAddress}`);
+  }
   try {
     const parts = url.pathname.split('/').filter(Boolean);
     const handled = await handleApi(req, res, parts, url);

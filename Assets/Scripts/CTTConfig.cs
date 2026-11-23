@@ -88,7 +88,7 @@ namespace CatchTheTroublemaker
             { "title", new[] { "CATCH THE TROUBLEMAKER", "CATCH THE TROUBLEMAKER" } },
             { "tagline", new[] { "One kid. Fifty coins. Two very tired parents.", "Un nen. Cinquanta monedes. Dos pares molt cansats." } },
             { "name", new[] { "Your name", "El teu nom" } },
-            { "server", new[] { "Server URL", "URL del servidor" } },
+            { "server", new[] { "Server URL  •  other PCs: use the host's LAN IP", "URL del servidor  •  altres PCs: IP LAN de l'amfitrió" } },
             { "test", new[] { "TEST", "PROVA" } },
             { "testing", new[] { "Testing server…", "Provant el servidor…" } },
             { "connectionOk", new[] { "Server OK", "Servidor OK" } },
