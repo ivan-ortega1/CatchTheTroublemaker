@@ -16,6 +16,17 @@ namespace CatchTheTroublemaker.Editor
     {
         public const string ScenePath = "Assets/Scenes/SampleScene.unity";
 
+        [MenuItem("Tools/Catch the Troublemaker/Reset Connection Settings")]
+        public static void ResetConnectionSettings()
+        {
+            string old = PlayerPrefs.GetString(CTTConfig.PlayerPrefKey, CTTConfig.DefaultServer);
+            PlayerPrefs.DeleteKey(CTTConfig.PlayerPrefKey);
+            PlayerPrefs.DeleteKey("ctt_code");
+            PlayerPrefs.DeleteKey("ctt_playerId");
+            PlayerPrefs.Save();
+            Debug.Log("[CTT] Cleared saved server URL (" + old + ") and room session. Press Play again.");
+        }
+
         [MenuItem("Tools/Catch the Troublemaker/Setup Scene")]
         public static void Build()
         {

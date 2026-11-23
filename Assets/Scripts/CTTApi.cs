@@ -17,6 +17,7 @@ namespace CatchTheTroublemaker
         private void Awake()
         {
             Instance = this;
+            Debug.Log("[CTT] Server URL: " + ServerUrl);
         }
 
         public static string ServerUrl
