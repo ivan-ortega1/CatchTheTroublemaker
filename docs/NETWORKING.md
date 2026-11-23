@@ -10,6 +10,21 @@ the Node server runs on that same device.
 Clients --HTTP/SSE--> http://<host>:3000
 ```
 
+## Automatic LAN discovery (same network)
+
+The server listens on **UDP 3001** and answers broadcast probes from Unity clients.
+On a client in the same network you do **not** need to type anything:
+
+- On startup, if the saved URL is `localhost` and that is not reachable, the client
+  automatically searches the LAN, finds the host and fills in **Server URL**.
+- You can also press **FIND LAN** on the Home screen at any time. It says
+  `Found: http://…:3000` when the host answers.
+
+The Windows firewall rule installed with Node.js allows both TCP (3000) and UDP
+(3001), so no manual rule is normally needed. If discovery finds nothing, check that
+the host server is running and that the machines are on the same Wi-Fi (guest Wi-Fi
+and client isolation block broadcasts).
+
 Start the server on the host with:
 
 ```bash

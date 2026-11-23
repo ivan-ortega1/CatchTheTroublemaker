@@ -19,12 +19,20 @@ namespace CatchTheTroublemaker
         public event Action LanguageToggled;
         public event Action ContrastToggled;
         public event Action ConnectionTestRequested;
+        public event Action DiscoveryRequested;
 
         public int TouchX { get; private set; }
         public int TouchY { get; private set; }
         public bool TouchSprint { get; private set; }
 
         public string PlayerName => nameField != null ? nameField.text : "";
+
+        public void SetServerUrl(string url)
+        {
+            CTTApi.ServerUrl = url;
+            EnsureBuilt();
+            if (serverField != null) serverField.text = url;
+        }
 
         private GameManager game;
         private GamePhase phase;
@@ -168,6 +176,9 @@ namespace CatchTheTroublemaker
             // Commit as soon as the field loses focus or Enter is pressed, so the URL
             // is stored even if the player never presses TEST/Create/Join.
             serverField.onEndEdit.AddListener(_ => ApplyServer());
+            CttUi.Button(card, "FindLan", CTTConfig.Tr("find", ca), CttUi.Panel,
+                () => DiscoveryRequested?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(130, 56), new Vector2(250, -412), 17);
             CttUi.Button(card, "TestConnection", CTTConfig.Tr("test", ca), CttUi.Panel,
                 () => { ApplyServer(); ConnectionTestRequested?.Invoke(); },
                 new Vector2(0.5f, 1f), new Vector2(190, 56), new Vector2(415, -412), 22);

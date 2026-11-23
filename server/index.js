@@ -488,6 +488,47 @@ setInterval(() => {
   }
 }, CONFIG.tickMs);
 
+const DISCOVERY_PORT = Number(process.env.DISCOVERY_PORT) || 3001;
+const DISCOVERY_MAGIC = 'CTT_DISCOVER';
+let advertisedIp = null;
+
+/** Pick the local interface on the same subnet as the asking client. */
+function lanAddressFor(peer) {
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const net of list || []) {
+      if (net.family !== 'IPv4' || net.internal || net.address.startsWith('169.254.')) continue;
+      const mask = (net.netmask || '255.255.255.0').split('.').map(Number);
+      const local = net.address.split('.').map(Number);
+      const remote = peer.split('.').map(Number);
+      if (mask.every((m, i) => (local[i] & m) === (remote[i] & m))) return net.address;
+    }
+  }
+  return lanAddresses()[0] || null;
+}
+
+/** UDP beacon so Unity clients on the same LAN can discover this server. */
+function startDiscovery() {
+  const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+  socket.on('message', (msg, rinfo) => {
+    if (msg.toString().trim() !== DISCOVERY_MAGIC) return;
+    const ip = advertisedIp || lanAddressFor(rinfo.address);
+    if (!ip) return;
+    const payload = JSON.stringify({
+      type: 'CTT_SERVER',
+      url: `http://${ip}:${PORT}`,
+      port: PORT,
+    });
+    socket.send(Buffer.from(payload), rinfo.port, rinfo.address, (err) => {
+      if (err) console.error('[discovery] reply failed:', err.message);
+    });
+  });
+  socket.on('error', (err) => console.error('[discovery]', err.message));
+  socket.bind(DISCOVERY_PORT, () => {
+    console.log(`LAN discovery listening on UDP ${DISCOVERY_PORT}`);
+  });
+  return socket;
+}
+
 function lanAddresses() {
   const addresses = [];
   for (const list of Object.values(os.networkInterfaces())) {
@@ -517,10 +558,12 @@ function primaryLanAddress() {
 server.listen(PORT, async () => {
   console.log(`Catch the Troublemaker -> http://localhost:${PORT}`);
   const primary = await primaryLanAddress();
+  advertisedIp = primary;
   if (primary) console.log(`  SHARE THIS: http://${primary}:${PORT}   (same Wi-Fi / LAN)`);
   for (const ip of lanAddresses()) {
     if (ip !== primary) console.log(`  LAN: http://${ip}:${PORT}   (same Wi-Fi only)`);
   }
   console.log('Players on mobile data / another network need a public tunnel URL or a cloud host.');
   console.log(`REST + SSE ready.coinGoal=${CONFIG.coinGoal} tick=${CONFIG.tickMs}ms`);
+  startDiscovery();
 });

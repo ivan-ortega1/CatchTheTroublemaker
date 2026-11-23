@@ -35,6 +35,7 @@ namespace CatchTheTroublemaker
         public CTTState State { get; private set; }
         public CTTResult Result { get; private set; }
 
+        private CttLanDiscovery discovery;
         private float nextInputAt;
 
         private void Awake()
@@ -78,6 +79,10 @@ namespace CatchTheTroublemaker
             ui.LanguageToggled += ToggleLanguage;
             ui.ContrastToggled += ToggleContrast;
             ui.ConnectionTestRequested += TestConnection;
+            ui.DiscoveryRequested += () => FindLanServer(false);
+
+            discovery = GetComponent<CttLanDiscovery>();
+            if (discovery == null) discovery = gameObject.AddComponent<CttLanDiscovery>();
 
             ui.Initialize(this);
             board.Initialize(HighContrast);
@@ -88,6 +93,12 @@ namespace CatchTheTroublemaker
         {
             SetPhase(GamePhase.Home);
             board.Clear();
+
+            // A second machine usually still has the default localhost URL, which
+            // points at itself. If that URL is not reachable, find the host on the LAN.
+            string savedUrl = CTTApi.ServerUrl;
+            if (savedUrl.Contains("localhost") || savedUrl.Contains("127.0.0.1"))
+                network.TestConnection(_ => { }, _ => FindLanServer(true));
 
             string savedCode = PlayerPrefs.GetString(CodeKey, "");
             string savedId = PlayerPrefs.GetString(IdKey, "");
@@ -280,6 +291,21 @@ namespace CatchTheTroublemaker
             network.TestConnection(
                 _ => ui.Toast(CTTConfig.Tr("connectionOk", Catalan)),
                 Fail);
+        }
+
+        private void FindLanServer(bool automatic)
+        {
+            if (discovery == null) return;
+            if (!automatic) ui.Toast(CTTConfig.Tr("searching", Catalan));
+            discovery.Find(url =>
+            {
+                ui.SetServerUrl(url);
+                string label = automatic ? CTTConfig.Tr("autoFound", Catalan) : CTTConfig.Tr("found", Catalan);
+                ui.Toast(label + " " + url);
+            }, error =>
+            {
+                if (!automatic) ui.Toast(error);
+            });
         }
 
         private void ToggleLanguage()
