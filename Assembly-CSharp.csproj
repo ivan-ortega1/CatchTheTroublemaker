@@ -69,10 +69,13 @@
     <Compile Include="Assets\Scripts\PlayerController.cs" />
     <Compile Include="Assets\Scripts\UIManager.cs" />
     <Compile Include="Assets\Scripts\CTTHoldButton.cs" />
+    <Compile Include="Assets\Scripts\P2PGame.cs" />
     <Compile Include="Assets\Scripts\CTTSseClient.cs" />
     <Compile Include="Assets\Scripts\CTTLanDiscovery.cs" />
     <Compile Include="Assets\Scripts\BoardRenderer.cs" />
     <Compile Include="Assets\Scripts\CTTApi.cs" />
+    <Compile Include="Assets\Scripts\P2PEngine.cs" />
+    <Compile Include="Assets\Scripts\P2PTransport.cs" />
     <Compile Include="Assets\Scripts\CTTData.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
     <Compile Include="Assets\Scripts\CTTConfig.cs" />
