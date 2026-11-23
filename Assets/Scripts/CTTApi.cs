@@ -63,7 +63,8 @@ namespace CatchTheTroublemaker
                 string message = string.IsNullOrEmpty(request.downloadHandler.text)
                     ? request.error
                     : request.downloadHandler.text;
-                fail?.Invoke(Explain(message, request.result));
+                Debug.LogWarning("[CTT] Request failed: " + method + " " + url + " -> " + message);
+                fail?.Invoke(Explain(message, request.result, url));
             }
             request.Dispose();
         }
@@ -73,7 +74,7 @@ namespace CatchTheTroublemaker
         /// useless here: localhost means the device running the client, not the host
         /// PC. Give the player an actionable hint instead.
         /// </summary>
-        private static string Explain(string raw, UnityWebRequest.Result result)
+        private static string Explain(string raw, UnityWebRequest.Result result, string url)
         {
             string message = raw ?? "";
             bool unreachable = result == UnityWebRequest.Result.ConnectionError
@@ -81,7 +82,7 @@ namespace CatchTheTroublemaker
                 || message.IndexOf("resolve", System.StringComparison.OrdinalIgnoreCase) >= 0
                 || message.IndexOf("timeout", System.StringComparison.OrdinalIgnoreCase) >= 0;
             if (unreachable)
-                return "Cannot reach server. Check Server URL: localhost = this device only.";
+                return "Cannot reach " + ServerUrl + ". Server running? (localhost = this device)";
             return message;
         }
     }
