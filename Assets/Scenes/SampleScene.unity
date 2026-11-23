@@ -535,7 +535,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 966933479}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fef4b365f6c9e5244900be18619c7b80, type: 3}
+  m_Script: {fileID: 11500000, guid: f6a27becea84399468576435cf6bc1ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatchTheTroublemaker.UIManager
 --- !u!4 &966933481
@@ -1241,7 +1241,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1597938188}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c7f8612afe349847a201fbe321e6d4f, type: 3}
+  m_Script: {fileID: 11500000, guid: a4ad54e3f2065fb4788dc94383a3e997, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatchTheTroublemaker.PlayerController
   SendInterval: 0.1
@@ -1302,7 +1302,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1692477225}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 708c75b86973dbf46bbccd640fca947c, type: 3}
+  m_Script: {fileID: 11500000, guid: 0063b3f3097c006499c1037cf3ae9328, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatchTheTroublemaker.NetworkManager
   pollInterval: 0.35
@@ -1385,7 +1385,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1754458354}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7c19820c3ed49744a980912168a65d89, type: 3}
+  m_Script: {fileID: 11500000, guid: ce6a94cfe7112df478f604494597640b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatchTheTroublemaker.BoardRenderer
   pixelsPerTile: 16
@@ -1446,7 +1446,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1928719727}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2cd6c1adf3f2695409d55557897c6d77, type: 3}
+  m_Script: {fileID: 11500000, guid: be0be4263221d2b47a7693f551668cbd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatchTheTroublemaker.GameManager
   network: {fileID: 1692477226}
