@@ -25,6 +25,7 @@ namespace CatchTheTroublemaker
         public int dy;
         public bool sprint;
         public string claims;  // compact "id:role,id:role" roster, sent to late joiners
+        public string host;    // id of the room creator (lobby master)
     }
 
     /// <summary>
@@ -38,10 +39,14 @@ namespace CatchTheTroublemaker
     {
         public const int DiscoveryPort = 3002;
         public const string Magic = "CTT_P2P";
+        private const long HeartbeatMs = 2000;
+        private const long PeerTimeoutMs = 6000;
 
         public string PeerId { get; private set; }
         public string Room { get; private set; }
         public int TcpPort { get; private set; }
+        /// <summary>Creator of the room. Shared in every hello/roster/ping message.</summary>
+        public string HostId { get; set; }
 
         public event Action<string, string> PeerJoined;   // id, name
         public event Action<string> PeerLeft;             // id
@@ -63,6 +68,8 @@ namespace CatchTheTroublemaker
         private readonly Dictionary<string, IPEndPoint> discovered = new Dictionary<string, IPEndPoint>();
         private readonly Dictionary<string, long> discoveredAt = new Dictionary<string, long>();
         private readonly HashSet<string> connecting = new HashSet<string>();
+        private readonly Dictionary<string, long> lastSeen = new Dictionary<string, long>();
+        private long nextHeartbeatAt;
         private readonly object sync = new object();
 
         private UdpClient udp;
@@ -215,6 +222,7 @@ namespace CatchTheTroublemaker
                 var msg = new P2PMessage { t = "hello", name = localName };
                 msg.id = PeerId;
                 msg.room = Room;
+                msg.host = HostId ?? "";
                 peer.writer.Write(JsonUtility.ToJson(msg) + "\n");
                 peer.writer.Flush();
             }
@@ -289,6 +297,7 @@ namespace CatchTheTroublemaker
                 try { msg = JsonUtility.FromJson<P2PMessage>(raw); }
                 catch { continue; }
                 if (msg == null || string.IsNullOrEmpty(msg.id)) continue;
+                lock (sync) lastSeen[msg.id] = DateTime.UtcNow.Ticks / 10000;
 
                 if (msg.t == "bye")
                 {
@@ -343,6 +352,24 @@ namespace CatchTheTroublemaker
                 if (string.CompareOrdinal(PeerId, entry.Key) < 0 || now - seenAt > 1500)
                     ConnectTo(entry.Key, entry.Value);
             }
+
+            // Lobby peers are otherwise silent, so a closed/crashed app would never
+            // be noticed. Heartbeat + timeout makes PeerLeft reliable without a bye.
+            if (now >= nextHeartbeatAt)
+            {
+                nextHeartbeatAt = now + HeartbeatMs;
+                Broadcast(new P2PMessage { t = "ping" });
+            }
+            List<string> live;
+            lock (sync) live = new List<string>(peers.Keys);
+            foreach (string id in live)
+            {
+                long seen;
+                lock (sync) seen = lastSeen.ContainsKey(id) ? lastSeen[id] : 0;
+                long connectedAt;
+                lock (sync) connectedAt = discoveredAt.ContainsKey(id) ? discoveredAt[id] : now;
+                if (now - (seen == 0 ? connectedAt : seen) > PeerTimeoutMs) RemovePeer(id);
+            }
         }
 
         private void RemovePeer(string id)
@@ -355,6 +382,8 @@ namespace CatchTheTroublemaker
                 joined.Remove(id);
                 connecting.Remove(id);
                 discovered.Remove(id);
+                discoveredAt.Remove(id);
+                lastSeen.Remove(id);
             }
             try { peer.client.Close(); } catch { /* ignore */ }
             PeerLeft?.Invoke(id);
@@ -365,6 +394,7 @@ namespace CatchTheTroublemaker
             if (msg == null) return;
             msg.id = PeerId;
             msg.room = Room;
+            msg.host = HostId ?? "";
             string line = JsonUtility.ToJson(msg) + "\n";
             List<Peer> targets;
             lock (sync) targets = new List<Peer>(peers.Values);
@@ -394,8 +424,10 @@ namespace CatchTheTroublemaker
                 peers.Clear();
                 pending.Clear();
                 discovered.Clear();
+                discoveredAt.Clear();
                 connecting.Clear();
                 joined.Clear();
+                lastSeen.Clear();
             }
             foreach (Peer peer in all) try { peer.client.Close(); } catch { /* ignore */ }
         }

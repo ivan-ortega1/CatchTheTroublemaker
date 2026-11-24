@@ -44,6 +44,7 @@ namespace CatchTheTroublemaker
         private const string SoloPlayerId = "local-solo";
 
         private string localName = "Player";
+        private string hostId;   // creator/master of a multiplayer room
         private bool soloSession;
         private InputState localInput;
         private bool allReadyDetected;
@@ -61,12 +62,25 @@ namespace CatchTheTroublemaker
         public bool IsActive => transport != null || soloSession;
         public string RoomCode => soloSession ? "SOLO" : (transport == null ? "" : transport.Room);
         public string PlayerId => transport == null ? (soloSession ? SoloPlayerId : "") : transport.PeerId;
+        public bool IsHost => !string.IsNullOrEmpty(hostId) && hostId == PlayerId;
+
+        /// <summary>True when every connected player has explicitly picked a character.</summary>
+        public bool AllRolesChosen
+        {
+            get
+            {
+                if (!IsActive || peers.Count == 0) return false;
+                foreach (PeerInfo p in peers.Values)
+                    if (string.IsNullOrEmpty(p.role)) return false;
+                return true;
+            }
+        }
 
         /* ----------------------------- session ----------------------------- */
 
         public void Create(string name)
         {
-            StartSession(name, RandomCode());
+            StartSession(name, RandomCode(), true);
         }
 
         /// <summary>
@@ -78,16 +92,17 @@ namespace CatchTheTroublemaker
             Leave();
             localName = Sanitize(name);
             soloSession = true;
+            hostId = SoloPlayerId;
             peers[PlayerId] = new PeerInfo { id = PlayerId, name = localName, role = "" };
             LobbyChanged?.Invoke(BuildLobby());
         }
 
         public void Join(string code, string name)
         {
-            StartSession(name, (code ?? "").Trim().ToUpperInvariant());
+            StartSession(name, (code ?? "").Trim().ToUpperInvariant(), false);
         }
 
-        private void StartSession(string name, string code)
+        private void StartSession(string name, string code, bool asHost)
         {
             Leave();
             localName = Sanitize(name);
@@ -102,6 +117,8 @@ namespace CatchTheTroublemaker
             transport.PeerLeft += OnPeerLeft;
             transport.MessageReceived += OnMessage;
             transport.Start(code, localName);
+            hostId = asHost ? transport.PeerId : "";
+            transport.HostId = hostId;
 
             peers[transport.PeerId] = new PeerInfo
             {
@@ -122,6 +139,7 @@ namespace CatchTheTroublemaker
                 transport = null;
             }
             soloSession = false;
+            hostId = null;
             match = null;
             cachedResult = null;
             peers.Clear();
@@ -157,10 +175,20 @@ namespace CatchTheTroublemaker
             PeerInfo me;
             if (!peers.TryGetValue(PlayerId, out me)) return;
 
+            bool catalan = GameManager.Instance != null && GameManager.Instance.Catalan;
             if (!soloSession && peers.Count < CTTConfig.P2pMinRealPlayers)
             {
-                bool ca = GameManager.Instance != null && GameManager.Instance.Catalan;
-                Error?.Invoke(CTTConfig.Tr("needTwo", ca));
+                Error?.Invoke(CTTConfig.Tr("needTwo", catalan));
+                return;
+            }
+            if (!soloSession && !IsHost)
+            {
+                Error?.Invoke(CTTConfig.Tr("onlyHost", catalan));
+                return;
+            }
+            if (!AllRolesChosen)
+            {
+                Error?.Invoke(CTTConfig.Tr("needRoles", catalan));
                 return;
             }
 
@@ -218,6 +246,16 @@ namespace CatchTheTroublemaker
             peers.Remove(id);
             inputs.Remove(id);
             lastInput.Remove(id);
+            if (!string.IsNullOrEmpty(hostId) && id == hostId)
+            {
+                // Promote the lowest remaining peer id so every client picks the
+                // same new master without a central authority.
+                hostId = "";
+                foreach (PeerInfo p in peers.Values)
+                    if (string.IsNullOrEmpty(hostId) || string.CompareOrdinal(p.id, hostId) < 0)
+                        hostId = p.id;
+                if (transport != null) transport.HostId = hostId;
+            }
             if (match != null && participants.Contains(id))
                 Error?.Invoke("A player left the match — restart from the result screen.");
             LobbyChanged?.Invoke(BuildLobby());
@@ -226,6 +264,11 @@ namespace CatchTheTroublemaker
         private void OnMessage(P2PMessage msg)
         {
             if (transport == null || msg.id == transport.PeerId) return;
+            if (!string.IsNullOrEmpty(msg.host) && string.IsNullOrEmpty(hostId))
+            {
+                hostId = msg.host;
+                transport.HostId = hostId;
+            }
             PeerInfo peer;
             bool known = peers.TryGetValue(msg.id, out peer);
             if (!known)
@@ -258,7 +301,7 @@ namespace CatchTheTroublemaker
                     // their own ready seed, so everybody reaches the same agreement.
                     PeerInfo mine;
                     if (peers.TryGetValue(transport.PeerId, out mine) && !mine.ready &&
-                        peers.Count >= CTTConfig.P2pMinRealPlayers)
+                        peers.Count >= CTTConfig.P2pMinRealPlayers && AllRolesChosen)
                     {
                         mine.ready = true;
                         mine.seed = RandomSeed();
@@ -375,7 +418,7 @@ namespace CatchTheTroublemaker
         private void TryAllReady()
         {
             if (transport == null || match != null || allReadyDetected) return;
-            if (peers.Count < CTTConfig.P2pMinRealPlayers) return;
+            if (peers.Count < CTTConfig.P2pMinRealPlayers || !AllRolesChosen) return;
             foreach (PeerInfo p in peers.Values)
                 if (!p.ready) return;
 
@@ -535,12 +578,13 @@ namespace CatchTheTroublemaker
                 });
 
             var roleList = new List<CTTRoleSlot>();
-            Dictionary<string, string> assigned = AssignRoles();
             foreach (string role in P2PConfig.RoleOrder)
             {
+                // Lobby shows only explicit choices. Bot fallback happens at kickoff,
+                // not while players are still deciding their characters.
                 string takenBy = "";
-                foreach (var pair in assigned)
-                    if (pair.Value == role) { takenBy = pair.Key; break; }
+                foreach (PeerInfo p in peers.Values)
+                    if (p.role == role) { takenBy = p.id; break; }
                 roleList.Add(new CTTRoleSlot
                 {
                     role = role,
@@ -559,8 +603,8 @@ namespace CatchTheTroublemaker
             {
                 code = RoomCode,
                 status = match == null ? "waiting" : "playing",
-                // There is no host; every peer may press Start.
-                hostId = PlayerId,
+                // The creator is the lobby master; the simulation itself stays hostless.
+                hostId = hostId,
                 players = playerList.ToArray(),
                 roles = roleList.ToArray(),
             };
@@ -595,5 +639,6 @@ namespace CatchTheTroublemaker
         }
 
         private void OnDestroy() => Leave();
+        private void OnApplicationQuit() => Leave();
     }
 }

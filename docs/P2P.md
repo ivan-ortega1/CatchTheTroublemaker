@@ -27,11 +27,15 @@ the same game simulation locally and computes the same winner.
 2. One player presses **CREATE P2P ROOM** and shares the generated 5-letter code.
 3. Everyone else types that code in **Join code** and presses **JOIN**.
    Peers on the same LAN find each other automatically (UDP broadcast on port 3002).
-4. Pick roles. **START stays disabled until at least 2 real players are connected**;
-   the lobby shows *"At least 2 real players are needed to start"* while waiting.
-   Any of the connected peers may press START — one press is enough.
-5. Any empty role is played by a bot, so 2 humans can fill the six seats.
-6. When the match ends, every peer shows the same winner on its own Result screen.
+4. The player counter increases as soon as the TCP handshake completes; you do not
+   have to pick a role first. The **room creator is the master** shown as host.
+5. Everyone picks a character. **START stays disabled until (a) at least 2 real
+   players are connected, (b) every connected player has chosen a role, and
+   (c) the pressing player is the room creator.** The lobby hint explains which
+   condition is still missing. One press by the master is enough: the other peers
+   answer with their own ready seed.
+6. Any empty role is played by a bot, so 2 humans can fill the six seats.
+7. When the match ends, every peer shows the same winner on its own Result screen.
 
 The Node process does **not** need to be running in either mode. Keep every Unity
 window/player open; if a peer disconnects mid-match the others are notified.
@@ -51,12 +55,18 @@ peer C  ─┘
 | Session / lockstep | `Assets/Scripts/P2PGame.cs` | Solo session (one human + five bots, no transport), room code, role claims, hostless seed and player-list agreement, 20 Hz input exchange, 2-human minimum for multiplayer, local result. |
 | UI / integration | `UIManager.cs`, `GameManager.cs` | Mode switch and routing; the existing BoardRenderer/HUD draw P2P snapshots exactly like server snapshots. |
 
-### No host, no endpoint
+### No central server, no endpoint
 
 - In **Solo** there is no transport at all: `P2PGame` ticks `P2PMatch` locally with
   one human and five bots. The UI never shows a code and never requires the LAN.
-- In **Multiplayer** the 2-real-player minimum is checked twice: the lobby disables
-  START (and explains why) and `P2PGame.StartMatch()` rejects an early start.
+- In **Multiplayer** the room creator is the **lobby master**: only that client's
+  START button is enabled, and only after all connected players have chosen a role.
+  This is lobby control only; there is no authoritative simulator. If the master
+  leaves, the lowest remaining peer id is promoted on every client.
+- START is gated in two places: the lobby disables it with an explanatory hint and
+  `P2PGame.StartMatch()` rejects an early/non-master start.
+- **Leaving is detected immediately** on an explicit `bye` (Leave/Quit) and within
+  6 s otherwise: every peer sends a `ping` every 2 s and a silent peer is removed.
 - The **seed** is the XOR of every peer's random seed, so no peer controls it.
 - If several peers announce a start, everyone picks the message from the
   **lowest peer id** — a deterministic tie-break, not a permanent host.

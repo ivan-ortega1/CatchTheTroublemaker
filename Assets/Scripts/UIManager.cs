@@ -453,12 +453,20 @@ namespace CatchTheTroublemaker
             lobbyPlayers.text = CTTConfig.Tr("players", ca) + ": " + humans + " / 6";
 
             bool enough = !multiplayer || humans >= CTTConfig.P2pMinRealPlayers;
+            bool rolesChosen = lobby.players != null && lobby.players.Length > 0
+                && System.Array.TrueForAll(lobby.players, p => !string.IsNullOrEmpty(p.role));
+            bool isHost = playerId == lobby.hostId;
             if (lobbyHint != null)
-                lobbyHint.text = multiplayer && !enough ? CTTConfig.Tr("needTwo", ca) : "";
-            // In solo there is no host to wait for; in multiplayer Start needs the
-            // 2-real-player minimum even though every peer may press it.
+            {
+                lobbyHint.text = multiplayer && !enough ? CTTConfig.Tr("needTwo", ca)
+                    : !rolesChosen ? CTTConfig.Tr("needRoles", ca)
+                    : multiplayer && !isHost ? CTTConfig.Tr("waitHost", ca)
+                    : "";
+            }
+            // Only the room creator may start, and only after every connected
+            // player has explicitly picked a character.
             if (startButton != null)
-                startButton.interactable = (solo || playerId == lobby.hostId) && enough;
+                startButton.interactable = (solo || isHost) && enough && rolesChosen;
 
             var taken = new System.Collections.Generic.Dictionary<string, string>();
             if (lobby.players != null)
