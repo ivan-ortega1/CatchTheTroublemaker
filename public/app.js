@@ -293,6 +293,12 @@ function onPacket(type, data) {
     state.snapshot = data;
     enterGame();
   } else if (type === 'state') {
+    // The /state poll also carries the lobby while the match has not started.
+    // Without this, a broken SSE stream leaves the player counter frozen.
+    if (data.lobby) {
+      state.lobby = data.lobby;
+      if (state.screen === 'lobby') renderLobby();
+    }
     if (data.players) {
       state.prevSnapshot = state.snapshot;
       state.snapshot = data;

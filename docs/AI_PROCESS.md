@@ -142,6 +142,7 @@ als pares si cap nen arriba a la meta.
 | 13 | Errors de compilació C# en la primera passada. | `CttApi` vs `CTTApi`, paràmetre `size` duplicat, `Screen` (enum) enfront de `UnityEngine.Screen`, mètode estàtic que feia servir un camp d'instància. | Corregits i recompilats fins a 0 errors. |
 | 14 | El primer *patch* de presència (`room.seen`) no funcionava: tots els jugadors es convertien en bots en iniciar. | `syncPresence()` només es cridava a `start`/`restart`, abans que arribés cap input; després ja no es tornava a cridar. | Cridar-ho al *tick loop* (20 Hz) i a `/input`, i donar una finestra de gràcia inicial a cada jugador. Prova de regressió afegida → 15/15 tests. |
 | 15 | L'usuari va demanar **"un joc 2D normal de Unity, amb un GameManager"**, no un *bootstrap* de codi. | El primer client Unity creava càmera, UI i escena en temps d'execució (`RuntimeInitializeOnLoadMethod`), sense res a la Hierarchy. | Es va dividir `CTTGame` en `GameManager` + `NetworkManager`, `UIManager`, `BoardRenderer` i `PlayerController`; es va afegir un Editor script que escriu l'escena amb el `GameManager` i els seus fills; i es va passar el mapa i els jugadors a `SpriteRenderer` en espai de món amb càmera ortogràfica que segueix el jugador local. |
+| 16 | Amb dos dispositius, el comptador de jugadors del lobby es quedava a 1 si el client navegador perdia l'SSE. | `onPacket('state')` actualitzava el *snapshot* però ignorava `data.lobby`, que `/state` sí que inclou mentre la partida no ha començat. | Sincronitzar `state.lobby` i tornar a cridar `renderLobby()` també al camí de *polling*, perquè el recompte no depengui només de l'esdeveniment SSE `lobby`. |
 
 ### Què va funcionar a la primera
 
@@ -327,6 +328,7 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 - Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
   el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
   `GET /api/rooms/<cod>/result` respon correctament.
+- Iteració del comptador del lobby: `npm test` → **15/15** després de sincronitzar el lobby també al *polling* del client navegador.
 - Iteració Solo/Multi: compilació de tots els scripts (`Assets/Scripts` + `Assets/Editor`)
   amb el Roslyn d'Unity 6 → **0 errors** (només avisos preexistents de
   `FindFirstObjectByType`); `npm test` → **15/15**. `docs/P2P.md`, `README.md` i el
