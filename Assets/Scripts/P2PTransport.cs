@@ -26,6 +26,7 @@ namespace CatchTheTroublemaker
         public bool sprint;
         public string claims;  // compact "id:role,id:role" roster, sent to late joiners
         public string host;    // id of the room creator (lobby master)
+        public string people;  // compact "id|name|role;..." roster with usernames
     }
 
     /// <summary>
@@ -194,6 +195,10 @@ namespace CatchTheTroublemaker
                     NewLine = "\n",
                 };
                 newConnections.Enqueue(peer);
+                // Without this first hello the TCP socket exists but no peer is
+                // registered, so the master's player counter stays at 1 until
+                // someone changes a role and sends an unrelated message.
+                SendHello(peer);
 
                 string line;
                 while (running && (line = reader.ReadLine()) != null)

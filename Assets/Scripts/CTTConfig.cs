@@ -130,6 +130,7 @@ namespace CatchTheTroublemaker
             { "leave", new[] { "LEAVE", "SORTIR" } },
             { "free", new[] { "free · bot", "lliure · bot" } },
             { "host", new[] { "HOST", "AMFITRIÓ" } },
+            { "you", new[] { "YOU", "TU" } },
             { "youAre", new[] { "YOU ARE", "ETS" } },
             { "timeLeft", new[] { "TIME LEFT", "TEMPS RESTANT" } },
             { "sprint", new[] { "SPRINT", "ESPRINT" } },

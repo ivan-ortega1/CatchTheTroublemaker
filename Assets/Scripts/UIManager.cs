@@ -78,7 +78,7 @@ namespace CatchTheTroublemaker
         private GamePhase phase;
         private Canvas canvas;
         private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
-        private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyHint, hudRole, hudLives;
+        private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
         private Text modeLabel, serverCaptionLabel, createLabel, p2pKindLabel;
         private Button modeButton, findButton, testButton, createButton, p2pKindButton, joinButton;
@@ -261,9 +261,10 @@ namespace CatchTheTroublemaker
             lobbyCodeCaption = CttUi.Label(At(card, "Title", 1000, 60, 40), "Text",
                 CTTConfig.Tr("roomCode", ca), 36, CttUi.Accent);
             lobbyCode = CttUi.Label(At(card, "Code", 1000, 84, 108), "Text", "", 60, Color.white);
-            lobbyPlayers = CttUi.Label(At(card, "Players", 1000, 44, 178), "Text", "", 26, CttUi.Muted);
-            lobbyHint = CttUi.Label(At(card, "LobbyHint", 1000, 28, 208), "Text", "", 20, CttUi.Danger);
-            CttUi.Label(At(card, "RolesCaption", 1000, 44, 246), "Text", CTTConfig.Tr("chooseRole", ca), 24, CttUi.Muted);
+            lobbyPlayers = CttUi.Label(At(card, "Players", 1000, 40, 172), "Text", "", 26, CttUi.Muted);
+            lobbyNames = CttUi.Label(At(card, "PlayerNames", 1000, 40, 208), "Text", "", 20, CttUi.Accent);
+            lobbyHint = CttUi.Label(At(card, "LobbyHint", 1000, 28, 250), "Text", "", 20, CttUi.Danger);
+            CttUi.Label(At(card, "RolesCaption", 1000, 44, 286), "Text", CTTConfig.Tr("chooseRole", ca), 24, CttUi.Muted);
 
             // Each role is a card with one big coloured square as the character.
             for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
@@ -451,6 +452,18 @@ namespace CatchTheTroublemaker
             lobbyCode.text = solo ? CTTConfig.Tr("youPlusBots", ca) : lobby.code;
             int humans = lobby.players != null ? lobby.players.Length : 0;
             lobbyPlayers.text = CTTConfig.Tr("players", ca) + ": " + humans + " / 6";
+
+            // Live username list: grows/shrinks with the roster messages, so the
+            // master sees a new name the moment the client finishes the handshake.
+            var names = new System.Collections.Generic.List<string>();
+            foreach (CTTLobbyPlayer p in lobby.players ?? System.Array.Empty<CTTLobbyPlayer>())
+            {
+                string label = string.IsNullOrEmpty(p.name) ? p.id : p.name;
+                if (p.id == playerId) label += " (" + CTTConfig.Tr("you", ca) + ")";
+                if (p.id == lobby.hostId) label += " [" + CTTConfig.Tr("host", ca) + "]";
+                names.Add(label);
+            }
+            if (lobbyNames != null) lobbyNames.text = string.Join("   •   ", names);
 
             bool enough = !multiplayer || humans >= CTTConfig.P2pMinRealPlayers;
             bool rolesChosen = lobby.players != null && lobby.players.Length > 0

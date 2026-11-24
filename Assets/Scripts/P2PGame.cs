@@ -286,6 +286,7 @@ namespace CatchTheTroublemaker
 
                 case "roster":
                     ApplyRoster(msg.claims);
+                    ApplyPeople(msg.people);
                     break;
 
                 case "role":
@@ -332,7 +333,12 @@ namespace CatchTheTroublemaker
         private void SayRoster()
         {
             if (transport == null) return;
-            transport.Broadcast(new P2PMessage { t = "roster", claims = EncodingClaims() });
+            transport.Broadcast(new P2PMessage
+            {
+                t = "roster",
+                claims = EncodingClaims(),
+                people = EncodingPeople(),
+            });
         }
 
         private string EncodingClaims()
@@ -357,6 +363,43 @@ namespace CatchTheTroublemaker
                 if (!peers.TryGetValue(parts[0], out p)) continue;
                 p.role = parts[1] == "-" ? "" : parts[1];
             }
+        }
+
+        /// <summary>Roster with usernames, so the lobby list is complete even if a
+        /// hello arrives out of order or a client joins an existing room.</summary>
+        private string EncodingPeople()
+        {
+            var sb = new StringBuilder();
+            foreach (PeerInfo p in peers.Values)
+            {
+                if (sb.Length > 0) sb.Append(';');
+                sb.Append(p.id).Append('|').Append(SafeField(p.name)).Append('|')
+                  .Append(string.IsNullOrEmpty(p.role) ? "-" : SafeField(p.role));
+            }
+            return sb.ToString();
+        }
+
+        private void ApplyPeople(string people)
+        {
+            if (string.IsNullOrEmpty(people)) return;
+            foreach (string entry in people.Split(';'))
+            {
+                string[] parts = entry.Split('|');
+                if (parts.Length != 3) continue;
+                PeerInfo p;
+                if (!peers.TryGetValue(parts[0], out p))
+                {
+                    p = new PeerInfo { id = parts[0] };
+                    peers[parts[0]] = p;
+                }
+                p.name = parts[1];
+                p.role = parts[2] == "-" ? "" : parts[2];
+            }
+        }
+
+        private static string SafeField(string value)
+        {
+            return (value ?? "").Replace('|', ' ').Replace(';', ' ').Replace(':', ' ');
         }
 
         /* ----------------------------- hostless agreement ----------------------------- */
@@ -614,7 +657,7 @@ namespace CatchTheTroublemaker
 
         private static string Sanitize(string value)
         {
-            string result = (value ?? "").Trim();
+            string result = SafeField((value ?? "").Trim());
             if (result.Length == 0) result = "Player";
             return result.Substring(0, Mathf.Min(24, result.Length));
         }

@@ -27,8 +27,10 @@ the same game simulation locally and computes the same winner.
 2. One player presses **CREATE P2P ROOM** and shares the generated 5-letter code.
 3. Everyone else types that code in **Join code** and presses **JOIN**.
    Peers on the same LAN find each other automatically (UDP broadcast on port 3002).
-4. The player counter increases as soon as the TCP handshake completes; you do not
-   have to pick a role first. The **room creator is the master** shown as host.
+4. The player counter and the **username list** increase as soon as the TCP
+   handshake completes; you do not have to pick a role first. The room creator is
+   the master shown as `[HOST]` in that list. Names disappear again when a player
+   leaves (explicit Leave/Quit or a 6 s heartbeat timeout).
 5. Everyone picks a character. **START stays disabled until (a) at least 2 real
    players are connected, (b) every connected player has chosen a role, and
    (c) the pressing player is the room creator.** The lobby hint explains which
