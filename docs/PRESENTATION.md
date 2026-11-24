@@ -75,6 +75,9 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
 - **Quart prompt:** "full peer-to-peer, no host" → es va afegir un mode P2P amb motor
   determinista en C#, descobriment LAN i lockstep; l'endpoint del guanyador queda només
   al mode servidor opcional, tal com va decidir l'usuari.
+- **Cinquè prompt:** Solo o multiplayer dins del P2P → botó **P2P: SOLO / P2P: MULTI**;
+  Solo = 1 humà + 5 bots sense xarxa; Multi = codi de 5 lletres i START bloquejat fins
+  a 2 jugadors reals (els llocs lliures són bots).
 - No es va copiar la primera resposta: es van investigar SSE, BFS, PRNG i `node --test`.
 
 ### 9. Iteracions (1 min) — "què va fallar"
@@ -90,6 +93,8 @@ Guions detallats a `README.md` i `docs/AI_PROCESS.md`.
   recalculat al *tick loop* i a `/input`, amb finestra de gràcia a l'inici.
 - Primer client Unity només codi (`CttBootstrap`) → l'usuari va demanar un joc 2D normal
   amb `GameManager` → es va dividir en managers i es va escriure l'escena amb un Editor script.
+- P2P permetia començar amb un sol jugador → ara el lobby desactiva START i mostra el
+  motiu fins a 2 humans; Solo és un flux separat sense transport.
 
 ### 10. Verificació i lliçons (45 s)
 - **15/15 tests** (`npm test`): regles + API + presència sense SSE.

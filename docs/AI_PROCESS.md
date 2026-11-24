@@ -301,6 +301,7 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 | **Colors de personatge idèntics al menú** | S'han eliminat els tintats de *grace* i *sprint* als `SpriteRenderer` perquè l'usuari va demanar "the same colors like when selecting in the menu". El jugador local es distingeix només amb el marc blanc. Totes les icones UI (menú, lobby, HUD) fan servir la mateixa paleta i el mateix estat de contrast. | Barrejar colors amb blanc/groc segons l'estat del jugador. |
 | **Mode P2P sense amfitrió** | L'usuari va demanar "full peer-to-peer, no host" i va acceptar eliminar l'endpoint del guanyador. S'ha portat `server/engine.js` a C# (`P2PEngine.cs`), s'ha afegit descobriment UDP + malla TCP (`P2PTransport.cs`) i lockstep a 20 Hz (`P2PGame.cs`). La llavor és XOR de les llavors de tots els peers i les decisions empatades es resolen per id més baix: cap amfitrió permanent. El guanyador es calcula localment a cada màquina. | Dependre d'un Node sempre viu; o fer que un client "amfitrió" decidís la simulació (encara seria un servidor). |
 | **Paritat motor JS/C#** | Per evitar que el port canviés l'equilibri, s'ha executat el motor C# amb un *stub* de UnityEngine i s'ha comparat amb `server/engine.js` durant 400 ticks: mateix mapa, monedes, vides i posicions, tant amb 6 humans com amb 2 humans + 4 bots. | Suposar que el port era correcte sense comparar-lo. |
+| **P2P Solo / Multi** | L'usuari va demanar triar entre jugar sol (triar personatge i 5 bots) o amb almenys 2 jugadors reals que s'uneixen amb el codi. S'ha afegit el botó **P2P: SOLO / P2P: MULTI** a la Home, una sessió local sense transport per a Solo i un mínim de 2 humans comprovat tant al lobby (START desactivat amb missatge) com a `P2PGame.StartMatch()`. Un sol jugador pot prémer START: els altres responen amb la seva llavor. | Començar una partida "multijugador" amb una sola persona, o obligar tothom a prémer START. |
 
 ### Resultat i verificació
 
@@ -326,6 +327,10 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 - Prova end-to-end sense SSE repetida: dos humans amb `/input` i `/state`, sense obrir
   el flux d'esdeveniments, continuen `isBot: false` i `connected: true` després de 3 s;
   `GET /api/rooms/<cod>/result` respon correctament.
+- Iteració Solo/Multi: compilació de tots els scripts (`Assets/Scripts` + `Assets/Editor`)
+  amb el Roslyn d'Unity 6 → **0 errors** (només avisos preexistents de
+  `FindFirstObjectByType`); `npm test` → **15/15**. `docs/P2P.md`, `README.md` i el
+  README del client descriuen els dos fluxos i el mínim de 2 jugadors reals.
 - La documentació del client (`Assets/CatchTheTroublemaker/README.md`) s'ha reescrit
   per explicar la nova estructura i la comanda **Tools > Catch the Troublemaker >
   Setup Scene** per si cal refer l'escena.

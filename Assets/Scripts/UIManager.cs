@@ -21,9 +21,13 @@ namespace CatchTheTroublemaker
         public event Action ConnectionTestRequested;
         public event Action DiscoveryRequested;
         public event Action P2pModeToggled;
+        public event Action P2pKindToggled;
 
         /// <summary>True when the home screen is configured for hostless LAN play.</summary>
         public bool P2pMode { get; private set; }
+
+        /// <summary>In P2P mode: one real player plus bots instead of a code-based room.</summary>
+        public bool P2pSolo { get; private set; }
 
         public int TouchX { get; private set; }
         public int TouchY { get; private set; }
@@ -44,26 +48,40 @@ namespace CatchTheTroublemaker
             P2pMode = enabled;
             EnsureBuilt();
             bool ca = game != null && game.Catalan;
-            if (serverCaptionLabel != null)
-                serverCaptionLabel.text = enabled ? CTTConfig.Tr("p2pServer", ca) : CTTConfig.Tr("server", ca);
+            string captionKey = !enabled ? "server"
+                : P2pSolo ? "p2pSoloCaption" : "p2pMultiCaption";
+            string createKey = !enabled ? "create"
+                : P2pSolo ? "playSolo" : "createP2p";
+            if (serverCaptionLabel != null) serverCaptionLabel.text = CTTConfig.Tr(captionKey, ca);
             if (modeLabel != null)
                 modeLabel.text = CTTConfig.Tr(enabled ? "modeP2p" : "modeServer", ca);
-            if (createLabel != null)
-                createLabel.text = CTTConfig.Tr(enabled ? "createP2p" : "create", ca);
+            if (createLabel != null) createLabel.text = CTTConfig.Tr(createKey, ca);
+            if (p2pKindLabel != null)
+                p2pKindLabel.text = CTTConfig.Tr(P2pSolo ? "kindSolo" : "kindMulti", ca);
             if (serverField != null) serverField.gameObject.SetActive(!enabled);
             if (findButton != null) findButton.gameObject.SetActive(!enabled);
             if (testButton != null) testButton.gameObject.SetActive(!enabled);
-            Toast(enabled ? CTTConfig.Tr("p2pHint", ca) : "");
+            if (p2pKindButton != null) p2pKindButton.gameObject.SetActive(enabled);
+            if (joinField != null) joinField.gameObject.SetActive(enabled && !P2pSolo);
+            if (joinButton != null) joinButton.gameObject.SetActive(enabled && !P2pSolo);
+            Toast(enabled ? CTTConfig.Tr(P2pSolo ? "p2pSoloHint" : "p2pMultiHint", ca) : "");
+        }
+
+        /// <summary>Switches P2P between a solo match with bots and a code-based room.</summary>
+        public void SetP2pSolo(bool enabled)
+        {
+            P2pSolo = enabled;
+            SetP2pMode(P2pMode); // refresh captions, button labels and visibility
         }
 
         private GameManager game;
         private GamePhase phase;
         private Canvas canvas;
         private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
-        private Text toast, homeStatus, lobbyCode, lobbyPlayers, hudRole, hudLives;
+        private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
-        private Text modeLabel, serverCaptionLabel, createLabel;
-        private Button modeButton, findButton, testButton, createButton;
+        private Text modeLabel, serverCaptionLabel, createLabel, p2pKindLabel;
+        private Button modeButton, findButton, testButton, createButton, p2pKindButton, joinButton;
         private InputField nameField, serverField, joinField;
         private readonly Button[] roleButtons = new Button[6];
         private readonly Image[] rosterIcons = new Image[6];
@@ -212,6 +230,11 @@ namespace CatchTheTroublemaker
                 () => P2pModeToggled?.Invoke(),
                 new Vector2(0.5f, 1f), new Vector2(190, 56), new Vector2(315, -412), 16);
             modeLabel = modeButton.GetComponentInChildren<Text>();
+            // Visible only in P2P mode; the server-only fields leave this row free.
+            p2pKindButton = CttUi.Button(card, "P2pKind", "", CttUi.Accent2,
+                () => P2pKindToggled?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(250, 56), new Vector2(0, -412), 16);
+            p2pKindLabel = p2pKindButton.GetComponentInChildren<Text>();
 
             createButton = CttUi.Button(card, "Create", CTTConfig.Tr("create", ca), CttUi.Accent,
                 () => { ApplyServer(); CreateRequested?.Invoke(nameField.text); },
@@ -220,7 +243,7 @@ namespace CatchTheTroublemaker
 
             joinField = CttUi.Field(card, "JoinCode", "FQJFD", "",
                 new Vector2(0.5f, 1f), new Vector2(560, 60), new Vector2(-170, -590));
-            CttUi.Button(card, "Join", CTTConfig.Tr("join", ca), CttUi.Accent2,
+            joinButton = CttUi.Button(card, "Join", CTTConfig.Tr("join", ca), CttUi.Accent2,
                 () => { ApplyServer(); JoinRequested?.Invoke(joinField.text.Trim().ToUpperInvariant()); },
                 new Vector2(0.5f, 1f), new Vector2(300, 60), new Vector2(320, -590), 26);
 
@@ -235,10 +258,12 @@ namespace CatchTheTroublemaker
             RectTransform card = CardInner(lobbyPanel, 1120, 900);
             bool ca = game != null && game.Catalan;
 
-            CttUi.Label(At(card, "Title", 1000, 60, 40), "Text", CTTConfig.Tr("roomCode", ca), 36, CttUi.Accent);
+            lobbyCodeCaption = CttUi.Label(At(card, "Title", 1000, 60, 40), "Text",
+                CTTConfig.Tr("roomCode", ca), 36, CttUi.Accent);
             lobbyCode = CttUi.Label(At(card, "Code", 1000, 84, 108), "Text", "", 60, Color.white);
             lobbyPlayers = CttUi.Label(At(card, "Players", 1000, 44, 178), "Text", "", 26, CttUi.Muted);
-            CttUi.Label(At(card, "RolesCaption", 1000, 44, 238), "Text", CTTConfig.Tr("chooseRole", ca), 24, CttUi.Muted);
+            lobbyHint = CttUi.Label(At(card, "LobbyHint", 1000, 28, 208), "Text", "", 20, CttUi.Danger);
+            CttUi.Label(At(card, "RolesCaption", 1000, 44, 246), "Text", CTTConfig.Tr("chooseRole", ca), 24, CttUi.Muted);
 
             // Each role is a card with one big coloured square as the character.
             for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
@@ -419,11 +444,21 @@ namespace CatchTheTroublemaker
             if (lobby == null) return;
             EnsureBuilt();
             bool ca = game != null && game.Catalan;
-            lobbyCode.text = CTTConfig.Tr("roomCode", ca) + ": " + lobby.code;
+            bool solo = P2pMode && P2pSolo;
+            bool multiplayer = P2pMode && !P2pSolo;
+            if (lobbyCodeCaption != null)
+                lobbyCodeCaption.text = CTTConfig.Tr(solo ? "soloMode" : "roomCode", ca);
+            lobbyCode.text = solo ? CTTConfig.Tr("youPlusBots", ca) : lobby.code;
             int humans = lobby.players != null ? lobby.players.Length : 0;
             lobbyPlayers.text = CTTConfig.Tr("players", ca) + ": " + humans + " / 6";
 
-            if (startButton != null) startButton.interactable = playerId == lobby.hostId;
+            bool enough = !multiplayer || humans >= CTTConfig.P2pMinRealPlayers;
+            if (lobbyHint != null)
+                lobbyHint.text = multiplayer && !enough ? CTTConfig.Tr("needTwo", ca) : "";
+            // In solo there is no host to wait for; in multiplayer Start needs the
+            // 2-real-player minimum even though every peer may press it.
+            if (startButton != null)
+                startButton.interactable = (solo || playerId == lobby.hostId) && enough;
 
             var taken = new System.Collections.Generic.Dictionary<string, string>();
             if (lobby.players != null)

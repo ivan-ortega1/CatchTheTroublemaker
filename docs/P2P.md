@@ -6,17 +6,35 @@ the same game simulation locally and computes the same winner.
 
 ## How to play
 
-1. On **every** machine, open the project and press Play.
-2. On the Home screen press **MODE: ONLINE** until it reads **MODE: P2P**. The
+1. On the Home screen press **MODE: ONLINE** until it reads **MODE: P2P**. The
    Server URL field, FIND LAN and TEST buttons disappear — they are not needed.
-3. One player presses **CREATE P2P ROOM** and shares the generated 5-letter code.
-4. Everyone else types that code in **Join code** and presses **JOIN**.
+2. Press the new **P2P: MULTI / P2P: SOLO** button to choose the kind of session.
+
+### Solo (1 real player + 5 bots)
+
+1. Leave the toggle on **P2P: SOLO**. The join-code field is hidden and the main
+   button reads **PLAY SOLO**.
+2. Press **PLAY SOLO**. You go straight to the lobby; no room code or network
+   connection is needed.
+3. Choose the character you want to be (one of the six coloured squares) and press
+   **START**. The other five seats are bots controlled by the same local engine.
+4. The Result screen shows the winner computed locally, exactly as in a network match.
+
+### Multiplayer (2–6 real players, empty seats are bots)
+
+1. Toggle to **P2P: MULTI**. The button reads **CREATE P2P ROOM** and the join-code
+   field is visible again.
+2. One player presses **CREATE P2P ROOM** and shares the generated 5-letter code.
+3. Everyone else types that code in **Join code** and presses **JOIN**.
    Peers on the same LAN find each other automatically (UDP broadcast on port 3002).
-5. Pick a role and press **START** on any machine. Empty roles become bots.
+4. Pick roles. **START stays disabled until at least 2 real players are connected**;
+   the lobby shows *"At least 2 real players are needed to start"* while waiting.
+   Any of the connected peers may press START — one press is enough.
+5. Any empty role is played by a bot, so 2 humans can fill the six seats.
 6. When the match ends, every peer shows the same winner on its own Result screen.
 
-The Node process does **not** need to be running. Keep every Unity window/player
-open; if a peer disconnects mid-match the others are notified.
+The Node process does **not** need to be running in either mode. Keep every Unity
+window/player open; if a peer disconnects mid-match the others are notified.
 
 ## How it works
 
@@ -30,11 +48,15 @@ peer C  ─┘
 | --- | --- | --- |
 | Discovery + mesh | `Assets/Scripts/P2PTransport.cs` | Finds peers on the LAN, opens one TCP connection per pair, delivers newline-delimited JSON messages. |
 | Deterministic rules | `Assets/Scripts/P2PEngine.cs` | C# port of `server/engine.js`: seeded map, BFS bots, collision, coins, family-only catching, respawn, win detection. |
-| Session / lockstep | `Assets/Scripts/P2PGame.cs` | Room code, role claims, hostless seed and player-list agreement, 20 Hz input exchange, local result. |
+| Session / lockstep | `Assets/Scripts/P2PGame.cs` | Solo session (one human + five bots, no transport), room code, role claims, hostless seed and player-list agreement, 20 Hz input exchange, 2-human minimum for multiplayer, local result. |
 | UI / integration | `UIManager.cs`, `GameManager.cs` | Mode switch and routing; the existing BoardRenderer/HUD draw P2P snapshots exactly like server snapshots. |
 
 ### No host, no endpoint
 
+- In **Solo** there is no transport at all: `P2PGame` ticks `P2PMatch` locally with
+  one human and five bots. The UI never shows a code and never requires the LAN.
+- In **Multiplayer** the 2-real-player minimum is checked twice: the lobby disables
+  START (and explains why) and `P2PGame.StartMatch()` rejects an early start.
 - The **seed** is the XOR of every peer's random seed, so no peer controls it.
 - If several peers announce a start, everyone picks the message from the
   **lowest peer id** — a deterministic tie-break, not a permanent host.
@@ -50,12 +72,17 @@ Every 50 ms each peer broadcasts its movement intent for the next tick. A tick i
 simulated when all participants' inputs have arrived; after 250 ms a missing input
 is treated as "no movement" so a lost packet cannot freeze the game. Because all
 peers run the identical `P2PMatch`, identical inputs produce identical state.
+Pressing START once makes the other peers answer with their own ready seed, so the
+shared kickoff does not require everybody to click. In Solo the same loop runs with
+a single participant and no network messages.
 
 ## Verification
 
 The C# engine was checked against the authoritative JS engine for the same seed,
 the same six players and 400 ticks, and for a 2-human + 4-bot match. Positions,
-coin counts, lives and map layout matched exactly.
+coin counts, lives and map layout matched exactly. After the Solo/Multiplayer
+change, all `Assets/Scripts` and `Assets/Editor` C# files compile with Unity's
+Roslyn with 0 errors and `npm test` still passes 15/15.
 
 ## Limitations
 

@@ -9,6 +9,9 @@ namespace CatchTheTroublemaker
         public const string PlayerPrefKey = "ctt_unity_server";
         public const string NamePrefKey = "ctt_unity_name";
 
+        /// <summary>Minimum number of real (non-bot) players to start a P2P multiplayer match.</summary>
+        public const int P2pMinRealPlayers = 2;
+
         public static readonly string[] RoleOrder =
         {
             "fatherA", "motherA", "troublemakerA",
@@ -96,6 +99,16 @@ namespace CatchTheTroublemaker
             { "p2pServer", new[] { "P2P  •  same network, no server needed", "P2P  •  mateixa xarxa, sense servidor" } },
             { "createP2p", new[] { "CREATE P2P ROOM", "CREA SALA P2P" } },
             { "p2pHint", new[] { "P2P: everyone joins with the same 5-letter code. No server, no endpoint.", "P2P: tots s'uneixen amb el mateix codi de 5 lletres. Sense servidor ni endpoint." } },
+            { "kindSolo", new[] { "P2P: SOLO", "P2P: SOL" } },
+            { "kindMulti", new[] { "P2P: MULTI", "P2P: MULTI" } },
+            { "playSolo", new[] { "PLAY SOLO", "JUGAR SOL" } },
+            { "p2pSoloCaption", new[] { "P2P SOLO  •  pick a character; the other seats are bots", "P2P SOL  •  tria un personatge; els altres llocs són bots" } },
+            { "p2pMultiCaption", new[] { "P2P MULTI  •  share the 5-letter code (2 real players minimum)", "P2P MULTI  •  comparteix el codi de 5 lletres (mínim 2 jugadors reals)" } },
+            { "p2pSoloHint", new[] { "Solo: choose a role in the lobby, then START. Empty seats are bots.", "Sol: tria un rol a la sala i prem COMENÇAR. Els llocs lliures són bots." } },
+            { "p2pMultiHint", new[] { "Multiplayer: everyone joins with the same code; START needs 2 real players.", "Multijugador: tots s'uneixen amb el mateix codi; calen 2 jugadors reals per COMENÇAR." } },
+            { "soloMode", new[] { "SOLO MODE", "MODE SOL" } },
+            { "youPlusBots", new[] { "YOU + 5 BOTS", "TU + 5 BOTS" } },
+            { "needTwo", new[] { "At least 2 real players are needed to start (empty seats become bots).", "Calen almenys 2 jugadors reals per començar (els llocs lliures són bots)." } },
             { "searching", new[] { "Searching LAN…", "Cercant a la LAN…" } },
             { "found", new[] { "Found:", "Trobat:" } },
             { "autoFound", new[] { "LAN server:", "Servidor LAN:" } },

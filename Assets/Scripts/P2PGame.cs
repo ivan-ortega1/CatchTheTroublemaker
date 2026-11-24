@@ -41,7 +41,10 @@ namespace CatchTheTroublemaker
         private readonly Dictionary<string, InputState> lastInput = new Dictionary<string, InputState>();
         private readonly List<string> participants = new List<string>();
 
+        private const string SoloPlayerId = "local-solo";
+
         private string localName = "Player";
+        private bool soloSession;
         private InputState localInput;
         private bool allReadyDetected;
         private float startAt;
@@ -54,15 +57,29 @@ namespace CatchTheTroublemaker
         private bool resultSent;
         private CTTResult cachedResult;
 
-        public bool IsActive => transport != null;
-        public string RoomCode => transport == null ? "" : transport.Room;
-        public string PlayerId => transport == null ? "" : transport.PeerId;
+        /// <summary>A solo session is active without any transport.</summary>
+        public bool IsActive => transport != null || soloSession;
+        public string RoomCode => soloSession ? "SOLO" : (transport == null ? "" : transport.Room);
+        public string PlayerId => transport == null ? (soloSession ? SoloPlayerId : "") : transport.PeerId;
 
         /* ----------------------------- session ----------------------------- */
 
         public void Create(string name)
         {
             StartSession(name, RandomCode());
+        }
+
+        /// <summary>
+        /// Local-only session: one human (the chosen role) plus five bots. No transport,
+        /// no code, no messages — the same P2PMatch is ticked directly from Update().
+        /// </summary>
+        public void CreateSolo(string name)
+        {
+            Leave();
+            localName = Sanitize(name);
+            soloSession = true;
+            peers[PlayerId] = new PeerInfo { id = PlayerId, name = localName, role = "" };
+            LobbyChanged?.Invoke(BuildLobby());
         }
 
         public void Join(string code, string name)
@@ -104,6 +121,7 @@ namespace CatchTheTroublemaker
                 transport.Dispose();
                 transport = null;
             }
+            soloSession = false;
             match = null;
             cachedResult = null;
             peers.Clear();
@@ -121,29 +139,50 @@ namespace CatchTheTroublemaker
 
         public void SetRole(string role)
         {
-            if (transport == null) return;
+            if (!IsActive) return;
             PeerInfo me;
-            if (!peers.TryGetValue(transport.PeerId, out me)) return;
+            if (!peers.TryGetValue(PlayerId, out me)) return;
             me.role = role;
-            transport.Broadcast(new P2PMessage { t = "role", role = role });
-            SayRoster();
+            if (transport != null)
+            {
+                transport.Broadcast(new P2PMessage { t = "role", role = role });
+                SayRoster();
+            }
             LobbyChanged?.Invoke(BuildLobby());
         }
 
         public void StartMatch()
         {
-            if (transport == null || match != null) return;
+            if (!IsActive || match != null) return;
             PeerInfo me;
-            if (!peers.TryGetValue(transport.PeerId, out me)) return;
+            if (!peers.TryGetValue(PlayerId, out me)) return;
+
+            if (!soloSession && peers.Count < CTTConfig.P2pMinRealPlayers)
+            {
+                bool ca = GameManager.Instance != null && GameManager.Instance.Catalan;
+                Error?.Invoke(CTTConfig.Tr("needTwo", ca));
+                return;
+            }
+
             me.ready = true;
             me.seed = RandomSeed();
+            if (soloSession)
+            {
+                // No handshake: the single human starts immediately, bots fill the rest.
+                startSeed = me.seed;
+                startHumans = EncodeHumans(AssignRoles());
+                startFrom = PlayerId;
+                allReadyDetected = true;
+                startAt = Time.unscaledTime;
+                return;
+            }
             transport.Broadcast(new P2PMessage { t = "ready", seed = me.seed, name = me.name });
             TryAllReady();
         }
 
         public void Rematch()
         {
-            if (transport == null) return;
+            if (!IsActive) return;
             match = null;
             cachedResult = null;
             resultSent = false;
@@ -215,6 +254,19 @@ namespace CatchTheTroublemaker
                     peer.name = msg.name;
                     peer.seed = msg.seed;
                     peer.ready = true;
+                    // One player pressing START is enough: the other peers answer with
+                    // their own ready seed, so everybody reaches the same agreement.
+                    PeerInfo mine;
+                    if (peers.TryGetValue(transport.PeerId, out mine) && !mine.ready &&
+                        peers.Count >= CTTConfig.P2pMinRealPlayers)
+                    {
+                        mine.ready = true;
+                        mine.seed = RandomSeed();
+                        transport.Broadcast(new P2PMessage
+                        {
+                            t = "ready", seed = mine.seed, name = mine.name,
+                        });
+                    }
                     TryAllReady();
                     break;
 
@@ -323,6 +375,7 @@ namespace CatchTheTroublemaker
         private void TryAllReady()
         {
             if (transport == null || match != null || allReadyDetected) return;
+            if (peers.Count < CTTConfig.P2pMinRealPlayers) return;
             foreach (PeerInfo p in peers.Values)
                 if (!p.ready) return;
 
@@ -380,7 +433,7 @@ namespace CatchTheTroublemaker
             tickOpenedAt = Time.unscaledTime;
             nextSendAt = Time.unscaledTime;
             resultSent = false;
-            transport.Broadcast(new P2PMessage { t = "roster", claims = startHumans });
+            transport?.Broadcast(new P2PMessage { t = "roster", claims = startHumans });
             StateChanged?.Invoke(match.GetSnapshot(0L, true));
         }
 
@@ -401,8 +454,8 @@ namespace CatchTheTroublemaker
 
         private void Update()
         {
-            if (transport == null) return;
-            transport.Pump();
+            if (!IsActive) return;
+            transport?.Pump();
 
             if (match == null)
             {
@@ -422,8 +475,8 @@ namespace CatchTheTroublemaker
                     dy = localInput.dy,
                     sprint = localInput.sprint,
                 };
-                transport.Broadcast(msg);
-                RecordInput(transport.PeerId, msg);
+                if (transport != null) transport.Broadcast(msg);
+                RecordInput(PlayerId, msg);
             }
 
             bool everyoneReady = true;

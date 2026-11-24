@@ -22,10 +22,16 @@ If you ever need to recreate the scene structure, use
 
 ## Peer-to-peer (no server)
 
-Press **MODE: ONLINE** until it reads **MODE: P2P** on the Home screen. One player
-creates a 5-letter room, the others join with that code, and everyone starts when
-ready. Peers on the same LAN find each other via UDP 3002 and connect directly over
-TCP; there is no host and no HTTP winner endpoint. See [docs/P2P.md](../../docs/P2P.md).
+Press **MODE: ONLINE** until it reads **MODE: P2P** on the Home screen, then toggle
+**P2P: SOLO / P2P: MULTI**:
+
+- **Solo** — press **PLAY SOLO**, pick your character in the lobby and press **START**.
+  Five bots fill the remaining seats; no code, server or LAN connection is needed.
+- **Multi** — one player creates a 5-letter room, the others join with that code.
+  Peers on the same LAN find each other via UDP 3002 and connect directly over TCP.
+  **START is disabled until at least 2 real players are connected**; empty roles are
+  bots. There is no host and no HTTP winner endpoint — every peer computes the winner
+  locally. See [docs/P2P.md](../../docs/P2P.md).
 
 ## Connecting from another network
 
@@ -68,6 +74,9 @@ Catch the Troublemaker -> http://localhost:3000
 | `CTTDraw.cs` | Procedural textures: map, coins and the square character marker |
 | `CTTUI.cs` | uGUI factory: panels, labels, buttons, fields and coloured square icons |
 | `CTTHoldButton.cs` | Held-button behaviour for the touch D-pad and sprint |
+| `P2PConfig.cs` / `P2PEngine.cs` | Deterministic C# port of the rules engine (solo bots and multiplayer lockstep) |
+| `P2PTransport.cs` | UDP LAN discovery + direct TCP mesh for multiplayer rooms |
+| `P2PGame.cs` | Solo/multi sessions, role agreement, 2-player minimum, 20 Hz lockstep, local result |
 | `Assets/Editor/CTTSceneSetup.cs` | Editor menu command that builds/wires the scene objects |
 
 The runtime scripts now live in `Assets/Scripts/`; this folder keeps the client notes.

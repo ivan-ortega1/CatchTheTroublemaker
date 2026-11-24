@@ -5,8 +5,10 @@ A hyper-casual **multiplayer** game for 2–6 players on different machines. Two
 Two clients are available:
 
 - **Unity Universal 2D client** — the project in this folder (`Assets/CatchTheTroublemaker`).
-  It supports both an authoritative Node backend **and a hostless P2P mode** for
-  machines on the same network (no server, no host, no winner endpoint).
+  It supports an authoritative Node backend **and a hostless P2P mode** with two
+  session kinds: **Solo** (you pick a character and play with five bots, no network
+  needed) and **Multiplayer** (2–6 players on the same LAN sharing a 5-letter code,
+  no server, no host, no winner endpoint; empty seats are bots).
 - **Browser client** — a dependency-free HTML5 fallback in `public/` (server mode only).
 
 The server has **no npm dependencies** and no build step. See [docs/P2P.md](docs/P2P.md)
@@ -33,12 +35,20 @@ All artwork is generated procedurally at runtime — no image assets to import. 
 
 ### Play peer-to-peer (no server)
 
-On every machine, press **MODE: ONLINE** on the Home screen until it reads **MODE: P2P**.
-One player presses **CREATE P2P ROOM** and shares the 5-letter code; the others join
-with that code. Peers on the same LAN discover each other automatically, choose a
-seed and player list without a host, and run the same deterministic simulation in
-lockstep. Every peer computes the same winner locally — the HTTP result endpoint is
-not used. Full details: [docs/P2P.md](docs/P2P.md).
+Press **MODE: ONLINE** on the Home screen until it reads **MODE: P2P**, then use the
+new **P2P: SOLO / P2P: MULTI** button:
+
+- **Solo:** the button changes to **PLAY SOLO** and the join field disappears. Press
+  it, choose your character in the lobby and press **START**; the other five players
+  are bots. No server, code or LAN connection is required.
+- **Multiplayer:** one player presses **CREATE P2P ROOM** and shares the 5-letter
+  code; the others join with that code. **START is blocked until at least 2 real
+  players are connected**, and empty roles are bots. Peers on the same LAN discover
+  each other automatically, agree on a seed and player list without a host, and run
+  the same deterministic simulation in lockstep. Every peer computes the same winner
+  locally — the HTTP result endpoint is not used.
+
+Full details: [docs/P2P.md](docs/P2P.md).
 
 ### Play in a browser
 

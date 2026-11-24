@@ -84,6 +84,7 @@ namespace CatchTheTroublemaker
             ui.ConnectionTestRequested += TestConnection;
             ui.DiscoveryRequested += () => FindLanServer(false);
             ui.P2pModeToggled += ToggleP2pMode;
+            ui.P2pKindToggled += ToggleP2pKind;
 
             discovery = GetComponent<CttLanDiscovery>();
             if (discovery == null) discovery = gameObject.AddComponent<CttLanDiscovery>();
@@ -191,7 +192,8 @@ namespace CatchTheTroublemaker
             if (ui.P2pMode)
             {
                 SetPhase(GamePhase.Lobby);
-                p2p.Create(name);
+                if (ui.P2pSolo) p2p.CreateSolo(name);
+                else p2p.Create(name);
                 RoomCode = p2p.RoomCode;
                 PlayerId = p2p.PlayerId;
                 return;
@@ -376,6 +378,17 @@ namespace CatchTheTroublemaker
             }
             if (p2p != null && p2p.IsActive) p2p.Leave();
             ui.SetP2pMode(!ui.P2pMode);
+        }
+
+        private void ToggleP2pKind()
+        {
+            if (Phase != GamePhase.Home)
+            {
+                ui.Toast(CTTConfig.Tr("backHome", Catalan));
+                return;
+            }
+            if (p2p != null && p2p.IsActive) p2p.Leave();
+            ui.SetP2pSolo(!ui.P2pSolo);
         }
 
         private void TestConnection()
