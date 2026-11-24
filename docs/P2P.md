@@ -76,6 +76,12 @@ Pressing START once makes the other peers answer with their own ready seed, so t
 shared kickoff does not require everybody to click. In Solo the same loop runs with
 a single participant and no network messages.
 
+The TCP mesh alone is not enough to populate the lobby: as soon as a socket is
+ready, `P2PTransport` now sends a `hello` with the peer id/name on **both** ends.
+That is what makes `P2PGame.OnPeerJoined()` fire and the player counter increase.
+`runInBackground` is enabled in `ProjectSettings` so the peer that created the room
+keeps pumping messages even while its Unity window is not focused.
+
 ## Verification
 
 The C# engine was checked against the authoritative JS engine for the same seed,

@@ -205,6 +205,25 @@ namespace CatchTheTroublemaker
             }
         }
 
+        /// <summary>Send our identity as soon as a TCP socket is ready, on both the
+        /// outbound and inbound side. One hello is enough: the receiver answers with
+        /// its own hello/roster, and P2PGame de-duplicates with its joined set.</summary>
+        private void SendHello(Peer peer)
+        {
+            try
+            {
+                var msg = new P2PMessage { t = "hello", name = localName };
+                msg.id = PeerId;
+                msg.room = Room;
+                peer.writer.Write(JsonUtility.ToJson(msg) + "\n");
+                peer.writer.Flush();
+            }
+            catch (Exception e)
+            {
+                if (running) Debug.LogWarning("[P2P] hello send: " + e.Message);
+            }
+        }
+
         private void Close(Peer peer)
         {
             lock (sync)
