@@ -26,6 +26,8 @@ namespace CatchTheTroublemaker
         private const string LangKey = "ctt_catalan";
         private const string ContrastKey = "ctt_contrast";
 
+        public AudioSource matchMusic;
+
         public GamePhase Phase { get; private set; }
         public string RoomCode { get; private set; }
         public string PlayerId { get; private set; }
@@ -277,6 +279,7 @@ namespace CatchTheTroublemaker
 
         private void StartMatch()
         {
+            matchMusic.Play();
             if (ui.P2pMode && p2p != null && p2p.IsActive) { p2p.StartMatch(); return; }
             RequestMatch("/start");
         }
@@ -352,6 +355,7 @@ namespace CatchTheTroublemaker
             Result = result;
             SetPhase(GamePhase.Result);
             ui.ShowResult(result);
+            matchMusic.Stop();
         }
 
         private void Fail(string error)

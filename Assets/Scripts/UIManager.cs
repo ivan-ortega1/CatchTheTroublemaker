@@ -230,6 +230,7 @@ namespace CatchTheTroublemaker
 
         private void BuildLobby()
         {
+
             lobbyPanel = Card("LobbyPanel");
             RectTransform card = CardInner(lobbyPanel, 1120, 900);
             bool ca = game != null && game.Catalan;
@@ -266,6 +267,7 @@ namespace CatchTheTroublemaker
 
         private void BuildHud()
         {
+
             hudPanel = CttUi.PanelAt("HudPanel", canvas.transform, new Color(0f, 0f, 0f, 0f));
             hudPanel.GetComponent<Image>().raycastTarget = false;
 
@@ -443,6 +445,7 @@ namespace CatchTheTroublemaker
 
         public void UpdateHud(CTTState snapshot, string playerId)
         {
+
             if (snapshot == null) return;
             EnsureBuilt();
             bool ca = game != null && game.Catalan;
@@ -506,6 +509,7 @@ namespace CatchTheTroublemaker
 
         public void ShowResult(CTTResult result)
         {
+            
             EnsureBuilt();
             bool ca = game != null && game.Catalan;
             resultTitle.text = result != null && result.winnerTeam == "troublemakers"
