@@ -84,10 +84,16 @@ const FALLBACK_ROLES = {
   motherB: { short: 'MB', shape: 'triangle', color: '#8ac4ff', name: { en: 'Mum B', ca: 'Mare B' } },
   troublemakerB: { short: 'TB', shape: 'star', color: '#9b5de5', name: { en: 'Troublemaker B', ca: 'Entremaliat B' } },
 };
+const FAMILY_NAMES = {
+  ClassicCaillou: 'The Andersons',
+  EmilyAnderson: 'The Other Andersons',
+  JonathanJohnson: 'The Johnsons',
+  LittleBill: 'The Bills',
+};
 const FALLBACK_FAMILIES = ['ClassicCaillou', 'EmilyAnderson', 'JonathanJohnson', 'LittleBill']
   .map((id) => ({
     id,
-    name: id.replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
+    name: FAMILY_NAMES[id] || id.replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
     sprites: {
       troublemaker: `/characters/Troublemakers/${id}/Troublemaker.png`,
       father: `/characters/Troublemakers/${id}/Father.png`,

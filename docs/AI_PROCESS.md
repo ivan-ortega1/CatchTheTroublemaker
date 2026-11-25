@@ -395,6 +395,14 @@ a byte) a `Assets/Resources/CTTCharacters/<família>/` amb GUID nous, i
 aquest sprite i només cau al camp de l'asset si la còpia no existeix. L'eina d'editor
 torna a copiar qualsevol fitxer que falti, sense sobreescriure els existents.
 
+**Noms finals de les famílies:** l'usuari va triar els noms visiblement més clars
+`The Andersons`, `The Other Andersons`, `The Johnsons` i `The Bills`. Per evitar que
+les targetes mostrin noms diferents segons quina font es consulti, la correspondència
+està centralitzada a `CTTCharacterCatalog.DisplayNameFor()`, `server/index.js` i
+`public/app.js`; l'eina d'editor i el catàleg serialitzat fan servir la mateixa taula.
+Els ids de carpeta (`ClassicCaillou`, `EmilyAnderson`, `JonathanJohnson`, `LittleBill`)
+no es toquen perquè són les claus del protocol i de la validació.
+
 ### Verificació
 
 - Roslyn d'Unity 6: **0 errors** (`Assets/Scripts` + `Assets/Editor`, només avisos

@@ -319,7 +319,7 @@ namespace CatchTheTroublemaker
                     families[i] = new CTTCharacterFamily
                     {
                         id = CTTCharacterCatalog.FallbackIds[i],
-                        displayName = CTTCharacterCatalog.PrettyName(CTTCharacterCatalog.FallbackIds[i]),
+                        displayName = CTTCharacterCatalog.DisplayNameFor(CTTCharacterCatalog.FallbackIds[i]),
                     };
             }
 

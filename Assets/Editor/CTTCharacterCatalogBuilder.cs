@@ -33,7 +33,7 @@ namespace CatchTheTroublemaker.Editor
                     families.Add(new CTTCharacterFamily
                     {
                         id = id,
-                        displayName = CTTCharacterCatalog.PrettyName(id),
+                        displayName = CTTCharacterCatalog.DisplayNameFor(id),
                         troublemaker = FirstSprite(path + "/Troublemaker.png"),
                         father = FirstSprite(path + "/Father.png"),
                         mother = FirstSprite(path + "/Mother.png"),

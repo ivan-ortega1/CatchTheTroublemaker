@@ -42,8 +42,16 @@ function discoverFamilies() {
 
 const FAMILIES = discoverFamilies();
 
+// Player-facing labels; the folder ids above are the stable protocol keys.
+const FAMILY_NAMES = {
+  ClassicCaillou: 'The Andersons',
+  EmilyAnderson: 'The Other Andersons',
+  JonathanJohnson: 'The Johnsons',
+  LittleBill: 'The Bills',
+};
+
 function prettyFamilyName(id) {
-  return String(id).replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return FAMILY_NAMES[id] || String(id).replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
 function familyConfig() {

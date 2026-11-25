@@ -59,6 +59,11 @@ test('host picks two distinct families and the start endpoint enforces it', asyn
   const sprite = await fetch(BASE + config.data.families[0].sprites.troublemaker);
   assert.equal(sprite.status, 200);
   assert.match(sprite.headers.get('content-type') || '', /image\/png/);
+  const names = Object.fromEntries(config.data.families.map((f) => [f.id, f.name]));
+  assert.equal(names.ClassicCaillou, 'The Andersons');
+  assert.equal(names.EmilyAnderson, 'The Other Andersons');
+  assert.equal(names.JonathanJohnson, 'The Johnsons');
+  assert.equal(names.LittleBill, 'The Bills');
 
   const created = await api('POST', '/api/rooms', { name: 'Host' });
   const { code, playerId: hostId } = created.data;

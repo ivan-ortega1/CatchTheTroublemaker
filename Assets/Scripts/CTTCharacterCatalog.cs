@@ -62,6 +62,20 @@ namespace CatchTheTroublemaker
             }
         }
 
+        /// <summary>Player-facing family names. Folder ids stay stable for the
+        /// network protocol; only these labels are renamed.</summary>
+        public static string DisplayNameFor(string id)
+        {
+            switch (id)
+            {
+                case "ClassicCaillou": return "The Andersons";
+                case "EmilyAnderson": return "The Other Andersons";
+                case "JonathanJohnson": return "The Johnsons";
+                case "LittleBill": return "The Bills";
+                default: return PrettyName(id);
+            }
+        }
+
         public static string PrettyName(string id)
         {
             if (string.IsNullOrEmpty(id)) return "";
@@ -90,7 +104,7 @@ namespace CatchTheTroublemaker
             CTTCharacterFamily family = Find(id);
             if (family != null && !string.IsNullOrEmpty(family.displayName))
                 return family.displayName;
-            return PrettyName(id);
+            return DisplayNameFor(id);
         }
 
         /// <summary>First N folder ids, used as the default selection in new rooms.</summary>
@@ -121,7 +135,7 @@ namespace CatchTheTroublemaker
                 catalog.families[i] = new CTTCharacterFamily
                 {
                     id = FallbackIds[i],
-                    displayName = PrettyName(FallbackIds[i]),
+                    displayName = DisplayNameFor(FallbackIds[i]),
                 };
             return catalog;
         }

@@ -35,8 +35,10 @@ The map, world characters and coins are generated procedurally; the only importe
 artwork is the four family portrait sets used on the lobby selector (below). In the Unity client every in-game character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). In the world, characters keep those exact role colours and coins are bright **yellow circles**. The browser client keeps the ■ ▲ ★ shape coding.
 
 **Family selector (all modes, both clients).** Before starting, the room creator/master
-— or the Solo player — clicks **two different families** from `Assets/Sprites/Characters/Troublemakers`
-(`ClassicCaillou`, `EmilyAnderson`, `JonathanJohnson`, `LittleBill`). Each card shows the
+— or the Solo player — clicks **two different families** from `Assets/Sprites/Characters/Troublemakers`.
+The cards are labelled **The Andersons** (`ClassicCaillou`), **The Other Andersons**
+(`EmilyAnderson`), **The Johnsons** (`JonathanJohnson`) and **The Bills** (`LittleBill`);
+the folder ids stay unchanged as the network keys. Each card shows the
 troublemaker, father and mother sprites together and gets an **A** or **B** badge.
 Click a selected card to remove it; a third card stays locked until one is removed.
 These are display-only names: the internal family slots `A`/`B`, role colours and the
