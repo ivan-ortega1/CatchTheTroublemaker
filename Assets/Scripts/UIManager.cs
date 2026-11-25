@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,6 +14,7 @@ namespace CatchTheTroublemaker
         public event Action<string> CreateRequested;
         public event Action<string> JoinRequested;
         public event Action<string> RoleRequested;
+        public event Action<string> FamilyRequested;
         public event Action StartRequested;
         public event Action RematchRequested;
         public event Action LeaveRequested;
@@ -78,12 +80,15 @@ namespace CatchTheTroublemaker
         private GamePhase phase;
         private Canvas canvas;
         private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
-        private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, hudRole, hudLives;
+        private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, familyCaption, familyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
         private Text modeLabel, serverCaptionLabel, createLabel, p2pKindLabel;
         private Button modeButton, findButton, testButton, createButton, p2pKindButton, joinButton;
         private InputField nameField, serverField, joinField;
         private readonly Button[] roleButtons = new Button[6];
+        private readonly List<Button> familyButtons = new List<Button>();
+        private readonly List<string> familyIds = new List<string>();
+        private readonly List<Text> familySlotLabels = new List<Text>();
         private readonly Image[] rosterIcons = new Image[6];
         private readonly Text[] rosterLabels = new Text[6];
         private Image hudRoleIcon;
@@ -264,31 +269,85 @@ namespace CatchTheTroublemaker
             lobbyPlayers = CttUi.Label(At(card, "Players", 1000, 40, 172), "Text", "", 26, CttUi.Muted);
             lobbyNames = CttUi.Label(At(card, "PlayerNames", 1000, 40, 208), "Text", "", 20, CttUi.Accent);
             lobbyHint = CttUi.Label(At(card, "LobbyHint", 1000, 28, 250), "Text", "", 20, CttUi.Danger);
-            CttUi.Label(At(card, "RolesCaption", 1000, 44, 286), "Text", CTTConfig.Tr("chooseRole", ca), 24, CttUi.Muted);
+            familyCaption = CttUi.Label(At(card, "FamiliesCaption", 1000, 40, 276), "Text",
+                CTTConfig.Tr("chooseFamilies", ca), 24, CttUi.Muted);
+            familyHint = CttUi.Label(At(card, "FamiliesHint", 1000, 26, 312), "Text",
+                CTTConfig.Tr("familyHint", ca), 16, CttUi.Muted);
+            BuildFamilyCards(card);
+
+            CttUi.Label(At(card, "RolesCaption", 1000, 40, 470), "Text",
+                CTTConfig.Tr("chooseRole", ca), 22, CttUi.Muted);
 
             // Each role is a card with one big coloured square as the character.
             for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
             {
                 string role = CTTConfig.RoleOrder[i];
                 float x = (i % 3 - 1) * 360f;
-                float y = 340f + (i / 3) * 170f;
+                float y = 520f + (i / 3) * 110f;
                 Button button = CttUi.Button(card, "Role_" + role, "", CttUi.Panel,
                     () => RoleRequested?.Invoke(role),
-                    new Vector2(0.5f, 1f), new Vector2(340, 150), new Vector2(x, -y), 22);
+                    new Vector2(0.5f, 1f), new Vector2(340, 100), new Vector2(x, -y), 20);
                 roleButtons[i] = button;
 
                 CttUi.Icon(button.transform, "Character",
-                    CTTConfig.ColorOf(role, game != null && game.HighContrast), new Vector2(78, 78),
-                    new Vector2(0f, 0.5f), new Vector2(60, 8));
-                CttUi.InsetCaption(button, 112f);
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast), new Vector2(62, 62),
+                    new Vector2(0f, 0.5f), new Vector2(52, 6));
+                CttUi.InsetCaption(button, 92f);
             }
 
             startButton = CttUi.Button(card, "Start", CTTConfig.Tr("start", ca), CttUi.Accent,
                 () => StartRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(700, 72), new Vector2(0, -690), 30);
+                new Vector2(0.5f, 1f), new Vector2(700, 66), new Vector2(0, -760), 28);
             CttUi.Button(card, "Leave", CTTConfig.Tr("leave", ca), CttUi.Panel,
                 () => LeaveRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(300, 56), new Vector2(0, -784), 22);
+                new Vector2(0.5f, 1f), new Vector2(300, 44), new Vector2(0, -838), 20);
+        }
+
+        /// <summary>Four family cards, each showing the troublemaker + father + mother sprites.</summary>
+        private void BuildFamilyCards(RectTransform card)
+        {
+            familyButtons.Clear();
+            familyIds.Clear();
+            familySlotLabels.Clear();
+
+            CTTCharacterCatalog catalog = CTTCharacterCatalog.Current;
+            CTTCharacterFamily[] families = catalog.families;
+            if (families == null || families.Length == 0)
+            {
+                families = new CTTCharacterFamily[CTTCharacterCatalog.FallbackIds.Length];
+                for (int i = 0; i < families.Length; i++)
+                    families[i] = new CTTCharacterFamily
+                    {
+                        id = CTTCharacterCatalog.FallbackIds[i],
+                        displayName = CTTCharacterCatalog.PrettyName(CTTCharacterCatalog.FallbackIds[i]),
+                    };
+            }
+
+            for (int i = 0; i < families.Length; i++)
+            {
+                CTTCharacterFamily family = families[i];
+                if (family == null || string.IsNullOrEmpty(family.id)) continue;
+                string id = family.id;
+                float x = (i - (families.Length - 1) * 0.5f) * 270f;
+
+                Button button = CttUi.Button(card, "Family_" + id, "", CttUi.Panel,
+                    () => FamilyRequested?.Invoke(id),
+                    new Vector2(0.5f, 1f), new Vector2(250, 110), new Vector2(x, -350), 18);
+                familyButtons.Add(button);
+                familyIds.Add(id);
+
+                CttUi.SpriteImage(button.transform, "Troublemaker", family.troublemaker,
+                    new Vector2(46, 46), new Vector2(0.5f, 0.5f), new Vector2(-62, 12));
+                CttUi.SpriteImage(button.transform, "Father", family.father,
+                    new Vector2(46, 46), new Vector2(0.5f, 0.5f), new Vector2(0, 12));
+                CttUi.SpriteImage(button.transform, "Mother", family.mother,
+                    new Vector2(46, 46), new Vector2(0.5f, 0.5f), new Vector2(62, 12));
+
+                CttUi.LabelAt(button.transform, "Name", family.displayName, 17, Color.white,
+                    new Vector2(0.5f, 0.5f), new Vector2(230, 24), new Vector2(0, -34));
+                familySlotLabels.Add(CttUi.LabelAt(button.transform, "Slot", "", 16, CttUi.Accent,
+                    new Vector2(0.5f, 0.5f), new Vector2(40, 24), new Vector2(102, 38)));
+            }
         }
 
         private void BuildHud()
@@ -469,17 +528,23 @@ namespace CatchTheTroublemaker
             bool rolesChosen = lobby.players != null && lobby.players.Length > 0
                 && System.Array.TrueForAll(lobby.players, p => !string.IsNullOrEmpty(p.role));
             bool isHost = playerId == lobby.hostId;
+            string[] chosenFamilies = lobby.families ?? Array.Empty<string>();
+            int chosenCount = 0;
+            foreach (string id in chosenFamilies) if (!string.IsNullOrEmpty(id)) chosenCount++;
+            bool familiesChosen = chosenCount == 2;
             if (lobbyHint != null)
             {
                 lobbyHint.text = multiplayer && !enough ? CTTConfig.Tr("needTwo", ca)
+                    : !familiesChosen ? CTTConfig.Tr("needFamilies", ca)
                     : !rolesChosen ? CTTConfig.Tr("needRoles", ca)
                     : multiplayer && !isHost ? CTTConfig.Tr("waitHost", ca)
                     : "";
             }
             // Only the room creator may start, and only after every connected
-            // player has explicitly picked a character.
+            // player has explicitly picked a character and two families are set.
             if (startButton != null)
-                startButton.interactable = (solo || isHost) && enough && rolesChosen;
+                startButton.interactable = (solo || isHost) && enough && rolesChosen && familiesChosen;
+            RenderFamilyCards(chosenFamilies, solo || isHost);
 
             var taken = new System.Collections.Generic.Dictionary<string, string>();
             if (lobby.players != null)
@@ -496,6 +561,29 @@ namespace CatchTheTroublemaker
                 roleButtons[index].GetComponentInChildren<Text>().text =
                     shortName + "\n" + (taken.ContainsKey(slot.role) ? taken[slot.role] : CTTConfig.Tr("free", ca))
                     + (mine ? "  ✓" : "");
+            }
+        }
+
+        /// <summary>Marks the two chosen family cards and locks editing for guests.</summary>
+        private void RenderFamilyCards(string[] chosen, bool canEdit)
+        {
+            int chosenCount = 0;
+            foreach (string id in chosen) if (!string.IsNullOrEmpty(id)) chosenCount++;
+
+            for (int i = 0; i < familyButtons.Count && i < familyIds.Count; i++)
+            {
+                Button button = familyButtons[i];
+                if (button == null) continue;
+                int slot = Array.IndexOf(chosen, familyIds[i]);
+                if (familySlotLabels != null && i < familySlotLabels.Count && familySlotLabels[i] != null)
+                    familySlotLabels[i].text = slot == 0 ? "A" : slot == 1 ? "B" : "";
+                // A chosen card stays clickable so the host can remove it; once two
+                // families are picked, the remaining cards are locked.
+                button.interactable = canEdit && (slot >= 0 || chosenCount < 2);
+                if (button.image != null)
+                    button.image.color = slot >= 0
+                        ? Color.Lerp(CttUi.Panel, CttUi.Accent, 0.35f)
+                        : CttUi.Panel;
             }
         }
 
@@ -608,6 +696,8 @@ namespace CatchTheTroublemaker
             nameField.text = playerName;
             phase = current;
             ShowPhase(current);
+            if (familyCaption != null) familyCaption.text = CTTConfig.Tr("chooseFamilies", catalan);
+            if (familyHint != null) familyHint.text = CTTConfig.Tr("familyHint", catalan);
             if (lobby != null) RenderLobby(lobby, playerId);
             if (state != null && current == GamePhase.Playing) UpdateHud(state, playerId);
             if (result != null && current == GamePhase.Result) ShowResult(result);

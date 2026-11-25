@@ -27,6 +27,7 @@ namespace CatchTheTroublemaker
         public string claims;  // compact "id:role,id:role" roster, sent to late joiners
         public string host;    // id of the room creator (lobby master)
         public string people;  // compact "id|name|role;..." roster with usernames
+        public string families; // compact "A~B" family selection from the master
     }
 
     /// <summary>

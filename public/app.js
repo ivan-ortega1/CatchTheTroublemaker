@@ -19,6 +19,9 @@ const I18N = {
     roomCode: 'Room code', copy: 'Copy', copied: 'Copied!',
     lobbyHint: 'Share the code. Unclaimed roles are played by bots, so two people are enough to start.',
     players: 'Players', chooseRole: 'Choose your role',
+    chooseFamilies: 'Choose the two families',
+    familyHint: 'Host picks two different families. Click a chosen one to remove it.',
+    familyA: 'A', familyB: 'B', needFamilies: 'Choose two different families before starting.',
     startGame: 'Start game', leave: 'Leave room', free: 'Free · bot',
     gameTitle: 'Game in progress', youAre: 'You are', spectator: 'Spectator',
     teamA: 'Family A', teamB: 'Family B', timeLeft: 'Time left', sprint: 'Sprint',
@@ -52,6 +55,9 @@ const I18N = {
     roomCode: 'Codi de sala', copy: 'Copiar', copied: 'Copiat!',
     lobbyHint: 'Comparteix el codi. Els rols lliures els juguen bots, així que dues persones són suficients per començar.',
     players: 'Jugadors', chooseRole: 'Tria el teu rol',
+    chooseFamilies: 'Tria les dues famílies',
+    familyHint: 'L’amfitrió tria dues famílies diferents. Prem una de triada per treure-la.',
+    familyA: 'A', familyB: 'B', needFamilies: 'Tria dues famílies diferents abans de començar.',
     startGame: 'Començar', leave: 'Sortir', free: 'Lliure · bot',
     gameTitle: 'Partida en curs', youAre: 'Ets', spectator: 'Espectador',
     teamA: 'Família A', teamB: 'Família B', timeLeft: 'Temps restant', sprint: 'Esprint',
@@ -78,6 +84,16 @@ const FALLBACK_ROLES = {
   motherB: { short: 'MB', shape: 'triangle', color: '#8ac4ff', name: { en: 'Mum B', ca: 'Mare B' } },
   troublemakerB: { short: 'TB', shape: 'star', color: '#9b5de5', name: { en: 'Troublemaker B', ca: 'Entremaliat B' } },
 };
+const FALLBACK_FAMILIES = ['ClassicCaillou', 'EmilyAnderson', 'JonathanJohnson', 'LittleBill']
+  .map((id) => ({
+    id,
+    name: id.replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
+    sprites: {
+      troublemaker: `/characters/Troublemakers/${id}/Troublemaker.png`,
+      father: `/characters/Troublemakers/${id}/Father.png`,
+      mother: `/characters/Troublemakers/${id}/Mother.png`,
+    },
+  }));
 const TEAM_NAMES = {
   parents: { en: 'Parents', ca: 'Pares' },
   troublemakers: { en: 'Troublemakers', ca: 'Entremaliats' },
@@ -98,6 +114,7 @@ const state = {
   prevSnapshot: null,
   config: { sprint: { cooldownMs: 6500 } },
   roles: FALLBACK_ROLES,
+  families: FALLBACK_FAMILIES,
   screen: 'home',
   isHost: false,
   role: null,
@@ -238,9 +255,13 @@ function renderLobby() {
   state.role = lobby.players.find((p) => p.id === state.playerId)?.role || null;
   $('room-code').textContent = lobby.code;
 
+  const chosenFamilies = lobby.families || [];
   const startBtn = $('btn-start');
-  startBtn.disabled = !state.isHost;
-  startBtn.title = state.isHost ? '' : (state.lang === 'ca' ? 'Només l’amfitrió' : 'Host only');
+  startBtn.disabled = !state.isHost || chosenFamilies.length !== 2;
+  startBtn.title = !state.isHost
+    ? (state.lang === 'ca' ? 'Només l’amfitrió' : 'Host only')
+    : chosenFamilies.length !== 2 ? t('needFamilies') : '';
+  renderFamilyGrid();
 
   $('player-list').innerHTML = lobby.players.map((p) => `
     <li>
@@ -263,6 +284,49 @@ function renderLobby() {
         </span>
       </button>`;
   }).join('');
+}
+
+function renderFamilyGrid() {
+  const grid = $('family-grid');
+  if (!grid || !state.lobby) return;
+  const chosen = state.lobby.families || [];
+  grid.innerHTML = state.families.map((family) => {
+    const slot = chosen.indexOf(family.id);
+    const canPick = state.isHost && (slot >= 0 || chosen.length < 2);
+    const badge = slot === 0 ? t('familyA') : slot === 1 ? t('familyB') : '';
+    return `
+      <button class="family-btn ${slot >= 0 ? 'selected' : ''}"
+              data-family="${esc(family.id)}" aria-pressed="${slot >= 0}"
+              ${canPick ? '' : 'disabled'}>
+        <span class="family-slot">${esc(badge)}</span>
+        <span class="family-sprites">
+          <img src="${esc(family.sprites.troublemaker)}" alt="" />
+          <img src="${esc(family.sprites.father)}" alt="" />
+          <img src="${esc(family.sprites.mother)}" alt="" />
+        </span>
+        <strong>${esc(family.name)}</strong>
+      </button>`;
+  }).join('');
+}
+
+async function toggleFamily(id) {
+  const chosen = state.lobby?.families || [];
+  const next = [];
+  let wasSelected = false;
+  for (const family of chosen) {
+    if (family === id) { wasSelected = true; continue; }
+    next.push(family);
+  }
+  if (!wasSelected && next.length < 2) next.push(id);
+  try {
+    const data = await api('POST', `/rooms/${state.code}/families`, {
+      playerId: state.playerId, families: next,
+    });
+    state.lobby = data.lobby;
+    renderLobby();
+  } catch (err) {
+    $('lobby-error').textContent = err.message;
+  }
 }
 
 async function startGame() {
@@ -692,6 +756,7 @@ async function bootstrap() {
     const cfg = await api('GET', '/config');
     state.config = cfg.config;
     state.roles = cfg.roles;
+    state.families = cfg.families || [];
   } catch { /* fall back to built-in values */ }
 
   $('btn-create').addEventListener('click', createRoom);
@@ -713,6 +778,11 @@ async function bootstrap() {
       state.lobby = data.lobby;
       renderLobby();
     } catch (err) { $('lobby-error').textContent = err.message; }
+  });
+
+  $('family-grid').addEventListener('click', (e) => {
+    const btn = e.target.closest('.family-btn');
+    if (btn && !btn.disabled) toggleFamily(btn.dataset.family);
   });
 
   $('btn-start').addEventListener('click', startGame);

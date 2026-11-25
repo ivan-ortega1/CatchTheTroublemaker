@@ -24,6 +24,50 @@ const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'matches.jsonl');
 const PORT = Number(process.env.PORT) || 3000;
 
+// The playable families are the folders the user added under Assets. The server
+// only needs their names; the sprites themselves are served straight from disk.
+const CHARACTER_ROOT = path.join(ROOT, 'Assets', 'Sprites', 'Characters', 'Troublemakers');
+const FALLBACK_FAMILIES = ['ClassicCaillou', 'EmilyAnderson', 'JonathanJohnson', 'LittleBill'];
+
+function discoverFamilies() {
+  try {
+    return fs.readdirSync(CHARACTER_ROOT, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return FALLBACK_FAMILIES.slice();
+  }
+}
+
+const FAMILIES = discoverFamilies();
+
+function prettyFamilyName(id) {
+  return String(id).replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+}
+
+function familyConfig() {
+  return FAMILIES.map((id) => ({
+    id,
+    name: prettyFamilyName(id),
+    sprites: {
+      troublemaker: `/characters/Troublemakers/${id}/Troublemaker.png`,
+      father: `/characters/Troublemakers/${id}/Father.png`,
+      mother: `/characters/Troublemakers/${id}/Mother.png`,
+    },
+  }));
+}
+
+function normalizeFamilies(value) {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set();
+  for (const id of value) {
+    if (typeof id !== 'string' || !FAMILIES.includes(id) || seen.has(id)) return null;
+    seen.add(id);
+  }
+  return seen.size <= 2 ? [...seen] : null;
+}
+
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const rooms = new Map();               // code -> room
@@ -88,9 +132,16 @@ function readBody(req) {
 }
 
 function serveStatic(res, pathname) {
-  const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-  const target = path.resolve(PUBLIC_DIR, relative);
-  if (!target.startsWith(PUBLIC_DIR + path.sep) && target !== path.join(PUBLIC_DIR, 'index.html')) {
+  const isCharacter = pathname.startsWith('/characters/');
+  const base = isCharacter ? path.join(ROOT, 'Assets', 'Sprites', 'Characters') : PUBLIC_DIR;
+  const relative = pathname === '/'
+    ? 'index.html'
+    : isCharacter
+      ? pathname.replace(/^\/+characters\//, '')
+      : pathname.replace(/^\/+/, '');
+  const target = path.resolve(base, relative);
+  const rootFile = path.join(PUBLIC_DIR, 'index.html');
+  if (!target.startsWith(base + path.sep) && target !== rootFile) {
     return sendJSON(res, 403, { error: 'forbidden' });
   }
   fs.readFile(target, (err, data) => {
@@ -125,6 +176,7 @@ function lobbyInfo(room) {
       id: p.id, name: p.name, role: p.role, isHost: p.id === room.hostId,
     })),
     roles: roleSlots(room),
+    families: room.families.slice(),
   };
 }
 
@@ -219,7 +271,9 @@ async function handleApi(req, res, parts, url) {
   }
 
   if (resource === 'config' && method === 'GET') {
-    sendJSON(res, 200, { config: CONFIG, roles: ROLES, roleOrder: ROLE_ORDER });
+    sendJSON(res, 200, {
+      config: CONFIG, roles: ROLES, roleOrder: ROLE_ORDER, families: familyConfig(),
+    });
     return true;
   }
 
@@ -239,6 +293,7 @@ async function handleApi(req, res, parts, url) {
       }]]),
       match: null,
       status: 'lobby',
+      families: FAMILIES.slice(0, 2),
       createdAt: Date.now(),
       lastBroadcast: 0,
       persisted: false,
@@ -294,6 +349,29 @@ async function handleApi(req, res, parts, url) {
     return true;
   }
 
+  // Host-only family selection. 0-2 picks are allowed while the host decides;
+  // /start requires exactly two different families.
+  if (action === 'families' && method === 'POST') {
+    if (room.status !== 'lobby') {
+      sendJSON(res, 409, { error: 'Families are locked once the game starts' });
+      return true;
+    }
+    const body = await readBody(req);
+    if (body.playerId !== room.hostId) {
+      sendJSON(res, 403, { error: 'Only the host can choose families' });
+      return true;
+    }
+    const families = normalizeFamilies(body.families);
+    if (!families) {
+      sendJSON(res, 400, { error: 'Choose up to two different known families' });
+      return true;
+    }
+    room.families = families;
+    broadcast(room, 'lobby', lobbyInfo(room));
+    sendJSON(res, 200, { ok: true, lobby: lobbyInfo(room) });
+    return true;
+  }
+
   if (action === 'role' && method === 'POST') {
     if (room.status !== 'lobby') {
       sendJSON(res, 409, { error: 'Roles are locked once the game starts' });
@@ -322,6 +400,10 @@ async function handleApi(req, res, parts, url) {
     }
     if (room.status !== 'lobby') {
       sendJSON(res, 409, { error: 'Game already started' });
+      return true;
+    }
+    if (room.families.length !== 2) {
+      sendJSON(res, 409, { error: 'Choose two different families before starting' });
       return true;
     }
     // Nobody is left as a spectator: give any undeclared player a free role.

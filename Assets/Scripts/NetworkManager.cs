@@ -98,6 +98,24 @@ namespace CatchTheTroublemaker
                 }, fail);
         }
 
+        /// <summary>Host-only: send the two chosen family folder ids to the server.</summary>
+        public void SetFamilies(string code, string id, string[] families,
+            Action<CTTLobbyResponse> ok, Action<string> fail)
+        {
+            Api.Post("/api/rooms/" + code + "/families",
+                new CTTFamiliesRequest { playerId = id, families = families },
+                json =>
+                {
+                    var response = JsonUtility.FromJson<CTTLobbyResponse>(json);
+                    if (response == null || !response.ok)
+                    {
+                        fail?.Invoke(response == null ? null : response.error);
+                        return;
+                    }
+                    ok?.Invoke(response);
+                }, fail);
+        }
+
         public void PostMatchAction(string code, string id, string action,
             Action<CTTOkResponse> ok, Action<string> fail)
         {

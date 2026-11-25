@@ -16,8 +16,9 @@ the same game simulation locally and computes the same winner.
    button reads **PLAY SOLO**.
 2. Press **PLAY SOLO**. You go straight to the lobby; no room code or network
    connection is needed.
-3. Choose the character you want to be (one of the six coloured squares) and press
-   **START**. The other five seats are bots controlled by the same local engine.
+3. Choose the two families on the family cards (two are preselected, click a selected
+   card to remove it) and the character you want to be (one of the six coloured squares).
+   Then press **START**. The other five seats are bots controlled by the same local engine.
 4. The Result screen shows the winner computed locally, exactly as in a network match.
 
 ### Multiplayer (2–6 real players, empty seats are bots)
@@ -31,13 +32,17 @@ the same game simulation locally and computes the same winner.
    handshake completes; you do not have to pick a role first. The room creator is
    the master shown as `[HOST]` in that list. Names disappear again when a player
    leaves (explicit Leave/Quit or a 6 s heartbeat timeout).
-5. Everyone picks a character. **START stays disabled until (a) at least 2 real
-   players are connected, (b) every connected player has chosen a role, and
-   (c) the pressing player is the room creator.** The lobby hint explains which
-   condition is still missing. One press by the master is enough: the other peers
-   answer with their own ready seed.
-6. Any empty role is played by a bot, so 2 humans can fill the six seats.
-7. When the match ends, every peer shows the same winner on its own Result screen.
+5. The master picks two different families; cards show all three character sprites
+   and get an **A**/**B** badge. Click a selected card to remove it — a third card is
+   locked until one of the two is removed. Guests see the cards read-only, and the
+   choice is rebroadcast in the roster message (also to late joiners).
+6. Everyone picks a character. **START stays disabled until (a) at least 2 real
+   players are connected, (b) every connected player has chosen a role,
+   (c) two different families are chosen, and (d) the pressing player is the room
+   creator.** The lobby hint explains which condition is still missing. One press by
+   the master is enough: the other peers answer with their own ready seed.
+7. Any empty role is played by a bot, so 2 humans can fill the six seats.
+8. When the match ends, every peer shows the same winner on its own Result screen.
 
 The Node process does **not** need to be running in either mode. Keep every Unity
 window/player open; if a peer disconnects mid-match the others are notified.
@@ -54,7 +59,7 @@ peer C  ─┘
 | --- | --- | --- |
 | Discovery + mesh | `Assets/Scripts/P2PTransport.cs` | Finds peers on the LAN, opens one TCP connection per pair, delivers newline-delimited JSON messages. |
 | Deterministic rules | `Assets/Scripts/P2PEngine.cs` | C# port of `server/engine.js`: seeded map, BFS bots, collision, coins, family-only catching, respawn, win detection. |
-| Session / lockstep | `Assets/Scripts/P2PGame.cs` | Solo session (one human + five bots, no transport), room code, role claims, hostless seed and player-list agreement, 20 Hz input exchange, 2-human minimum for multiplayer, local result. |
+| Session / lockstep | `Assets/Scripts/P2PGame.cs` | Solo session (one human + five bots, no transport), room code, role claims, master-only family selection broadcast in the roster, hostless seed and player-list agreement, 20 Hz input exchange, 2-human minimum for multiplayer, local result. |
 | UI / integration | `UIManager.cs`, `GameManager.cs` | Mode switch and routing; the existing BoardRenderer/HUD draw P2P snapshots exactly like server snapshots. |
 
 ### No central server, no endpoint
@@ -62,9 +67,13 @@ peer C  ─┘
 - In **Solo** there is no transport at all: `P2PGame` ticks `P2PMatch` locally with
   one human and five bots. The UI never shows a code and never requires the LAN.
 - In **Multiplayer** the room creator is the **lobby master**: only that client's
-  START button is enabled, and only after all connected players have chosen a role.
-  This is lobby control only; there is no authoritative simulator. If the master
-  leaves, the lowest remaining peer id is promoted on every client.
+  START and family cards are enabled, and only after all connected players have
+  chosen a role and two different families are set. This is lobby control only;
+  there is no authoritative simulator. If the master leaves, the lowest remaining
+  peer id is promoted on every client and keeps the already-chosen families.
+- Family ids are **display metadata**: they only name the two cards in the lobby.
+  The engine keeps its internal `A`/`B` slots, role colours and family-only catch
+  rule, so no simulation parity is affected.
 - START is gated in two places: the lobby disables it with an explanatory hint and
   `P2PGame.StartMatch()` rejects an early/non-master start.
 - **Leaving is detected immediately** on an explicit `bye` (Leave/Quit) and within

@@ -343,3 +343,54 @@ preguntar l'abast, va triar **"GameManager + world 2D (Recommended)"**.
 - La documentació del client (`Assets/CatchTheTroublemaker/README.md`) s'ha reescrit
   per explicar la nova estructura i la comanda **Tools > Catch the Troublemaker >
   Setup Scene** per si cal refer l'escena.
+
+---
+
+## 13. Quarta fase: selector de dues famílies amb els sprites importats
+
+L'usuari va afegir `Assets/Sprites/Characters/Troublemakers/` amb quatre carpetes
+(`ClassicCaillou`, `EmilyAnderson`, `JonathanJohnson`, `LittleBill`), cadascuna amb
+`Troublemaker.png`, `Father.png` i `Mother.png`, i va demanar:
+
+> "Only 2 different families per match; the master/host picks both on a family select
+> screen showing the family name and all 3 sprites together; no repeated family."
+
+Abans de codificar es van aclarir tres decisions amb l'usuari:
+
+| Pregunta | Resposta triada |
+| --- | --- |
+| On ha d'estar el selector? | En **tots els modes** (servidor, P2P Multi i P2P Solo) i en **Unity + navegador**. |
+| On es mostren els sprites? | Només al **selector i al lobby**; al món i al HUD es conserven els quadrats de color exactes. |
+| Com es deselecciona? | Clicar una targeta triada la treu; una tercera no pot substituir-ne cap fins que se n'elimini una. |
+
+### Implementació
+
+| Peça | Què fa |
+| --- | --- |
+| `CTTCharacterCatalog.cs` + `CTTCharacterCatalogBuilder.cs` | `ScriptableObject` amb l'id, el nom i els tres sprites per família; l'eina d'editor escaneja les carpetes (`Tools > Catch the Troublemaker > Rebuild Character Catalog`) i escriu `Assets/Resources/CTTCharacterCatalog.asset` perquè *builds* i *plays* no necessitin `AssetDatabase`. |
+| `CTTData.cs`, `NetworkManager.cs`, `server/index.js` | `CTTLobby.families` viatja a `lobbyInfo`; nou endpoint host-only `POST /api/rooms/:code/families` amb validació (màxim 2, ids coneguts, sense duplicats); `/start` torna 409 si no hi ha exactament dues famílies. `/api/config` exposa les targetes amb URLs `/characters/...` i el servidor serveix els PNG des de `Assets/`. |
+| `UIManager.cs`, `CTTConfig.cs`, `CTTUI.cs` | Quatre targetes al lobby amb nom i tres sprites, insígnia **A**/**B**, targetes de convidat desactivades i `START` desactivat fins a tenir dues famílies. Texts CA/EN nous. El món i el HUD no canvien. |
+| `P2PTransport.cs`, `P2PGame.cs`, `GameManager.cs` | `P2PMessage.families` (`A~B`) s'envia amb `hello`/`roster`; només el master pot canviar-les, i els *joiners* tardans reben la selecció al roster. Solo també comença amb dues famílies per defecte. El toggle `NextFamilies()` implementa "clic per treure, tercera bloquejada". |
+| `public/` | Selector equivalent al navegador amb imatges, insígnies i POST `/families`; fallback si `/api/config` no respon.
+
+**Decisió clau:** els ids de família són **metadades de presentació**. El motor manté
+els slots interns `A`/`B`, els colors de rol i la regla "només els pares de la seva
+família poden agafar el nen". Així la paritat JS↔C# del motor no es toca i el canvi
+no pot alterar l'equilibri.
+
+**Incidència de l'editor:** es va intentar generar l'asset amb `-executeMethod` en
+*batch mode*, però l'editor de l'usuari ja tenia el projecte obert i Unity va refusar
+una segona instància (`return code 1`). Igual que en fases anteriors, no es va tancar
+l'editor: es va escriure el YAML de l'asset directament amb els GUID i `internalID`
+extrets dels `.meta` (els PNG estan tallats com a *sprite sheet*, això cal per obtenir
+el sub-asset `Sprite`), i es va deixar l'eina d'editor per regenerar-lo quan calgui.
+
+### Verificació
+
+- Roslyn d'Unity 6: **0 errors** (`Assets/Scripts` + `Assets/Editor`, només avisos
+  preexistents de `FindFirstObjectByType`).
+- `npm test`: **16/16**; el nou test comprova `/api/config`, el servei dels PNG,
+  el rebuig 403 a no-amfitrió, el rebuig 400 a duplicats, el bloqueig de `/start`
+  sense dues famílies i l'acceptació final.
+- `git status` revisat abans de desar; els `.csproj` generats per Unity es deixen sense
+  *commit*, com en les iteracions anteriors.

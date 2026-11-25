@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f647018293a4b5c6d7e8f9, type: 3}
+  m_Name: CTTCharacterCatalog
+  m_EditorClassIdentifier: 
+  families:
+  - id: ClassicCaillou
+    displayName: Classic Caillou
+    troublemaker: {fileID: 8495351130227548894, guid: 0cdc1656f7ec7854f9bb8ef2899b0362, type: 3}
+    father: {fileID: 6309138258289388890, guid: b1706495cae083a48bfcbca20f81dbdf, type: 3}
+    mother: {fileID: 7824727583334079943, guid: f76ae75bd413464468513384102c6952, type: 3}
+  - id: EmilyAnderson
+    displayName: Emily Anderson
+    troublemaker: {fileID: -5710495398469908237, guid: 73b7307bc5570974794d7d28d26e8511, type: 3}
+    father: {fileID: -3545970659491712649, guid: 8af443d2cbe5393479ce4ea170622b1b, type: 3}
+    mother: {fileID: -6273270423898123020, guid: eba1327dbc553c74496785ad38be5c3e, type: 3}
+  - id: JonathanJohnson
+    displayName: Jonathan Johnson
+    troublemaker: {fileID: 7287544050983685970, guid: 767a1bdb9b66305459bbb978772a346d, type: 3}
+    father: {fileID: -4796946842642060169, guid: d21583af32ef70e46a821f8b10d20db7, type: 3}
+    mother: {fileID: -1249455831008956517, guid: d607bf23ca55d7c43be049cf9ff1fcb1, type: 3}
+  - id: LittleBill
+    displayName: Little Bill
+    troublemaker: {fileID: 6023750170644076980, guid: a03d5f4c8708c9b418130671511938e3, type: 3}
+    father: {fileID: 6878660621935726261, guid: eb859425bed50054e85982900f59c5ca, type: 3}
+    mother: {fileID: 6398209956166395176, guid: 9fcef828f48ff5a449d362054b61943f, type: 3}

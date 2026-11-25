@@ -51,6 +51,50 @@ test('health and config endpoints describe the running game', async () => {
   assert.equal(config.data.roleOrder.length, 6);
 });
 
+test('host picks two distinct families and the start endpoint enforces it', async () => {
+  const config = await api('GET', '/api/config');
+  const families = config.data.families.map((f) => f.id);
+  assert.ok(families.length >= 2);
+  assert.ok(config.data.families[0].sprites.troublemaker.startsWith('/characters/'));
+  const sprite = await fetch(BASE + config.data.families[0].sprites.troublemaker);
+  assert.equal(sprite.status, 200);
+  assert.match(sprite.headers.get('content-type') || '', /image\/png/);
+
+  const created = await api('POST', '/api/rooms', { name: 'Host' });
+  const { code, playerId: hostId } = created.data;
+  assert.deepEqual(created.data.lobby.families, families.slice(0, 2));
+
+  const joined = await api('POST', `/api/rooms/${code}/join`, { name: 'Guest' });
+  const guestId = joined.data.playerId;
+
+  const denied = await api('POST', `/api/rooms/${code}/families`, {
+    playerId: guestId, families: [families[0], families[1]],
+  });
+  assert.equal(denied.status, 403);
+
+  const duplicate = await api('POST', `/api/rooms/${code}/families`, {
+    playerId: hostId, families: [families[0], families[0]],
+  });
+  assert.equal(duplicate.status, 400);
+
+  const cleared = await api('POST', `/api/rooms/${code}/families`, {
+    playerId: hostId, families: [],
+  });
+  assert.equal(cleared.status, 200);
+  assert.deepEqual(cleared.data.lobby.families, []);
+
+  const blocked = await api('POST', `/api/rooms/${code}/start`, { playerId: hostId });
+  assert.equal(blocked.status, 409);
+
+  const chosen = await api('POST', `/api/rooms/${code}/families`, {
+    playerId: hostId, families: [families[0], families[1]],
+  });
+  assert.deepEqual(chosen.data.lobby.families, [families[0], families[1]]);
+
+  const started = await api('POST', `/api/rooms/${code}/start`, { playerId: hostId });
+  assert.equal(started.status, 200);
+});
+
 test('create, join, swap roles and enforce host-only start', async () => {
   const created = await api('POST', '/api/rooms', { name: 'Marta' });
   assert.equal(created.status, 201);

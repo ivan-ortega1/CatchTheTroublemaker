@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CatchTheTroublemaker
@@ -20,6 +21,7 @@ namespace CatchTheTroublemaker
         public UIManager ui;
         public BoardRenderer board;
         public PlayerController playerInput;
+        public CTTCharacterCatalog characterCatalog;
 
         private const string CodeKey = "ctt_code";
         private const string IdKey = "ctt_playerId";
@@ -88,6 +90,7 @@ namespace CatchTheTroublemaker
 
             Catalan = PlayerPrefs.GetInt(LangKey, 0) == 1;
             HighContrast = PlayerPrefs.GetInt(ContrastKey, 0) == 1;
+            if (characterCatalog == null) characterCatalog = CTTCharacterCatalog.Current;
 
             network.LobbyReceived += OnLobbyReceived;
             network.StateReceived += OnStateReceived;
@@ -97,6 +100,7 @@ namespace CatchTheTroublemaker
             ui.CreateRequested += CreateRoom;
             ui.JoinRequested += JoinRoom;
             ui.RoleRequested += SelectRole;
+            ui.FamilyRequested += ToggleFamily;
             ui.StartRequested += StartMatch;
             ui.RematchRequested += Rematch;
             ui.LeaveRequested += LeaveRoom;
@@ -307,6 +311,45 @@ namespace CatchTheTroublemaker
                 }
                 else Fail(error);
             });
+        }
+
+        /// <summary>Host/master toggles one family card. A selected card can always be
+        /// removed; a third family cannot be added until one of the two is removed.</summary>
+        private void ToggleFamily(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+
+            if (ui.P2pMode && p2p != null && p2p.IsActive)
+            {
+                p2p.SetFamilies(NextFamilies(id, p2p.Families));
+                return;
+            }
+
+            if (Lobby == null || Lobby.hostId != PlayerId)
+            {
+                ui.Toast(CTTConfig.Tr("onlyHost", Catalan));
+                return;
+            }
+            network.SetFamilies(RoomCode, PlayerId, NextFamilies(id, Lobby.families),
+                response =>
+                {
+                    Lobby = response.lobby;
+                    ui.RenderLobby(Lobby, PlayerId);
+                }, Fail);
+        }
+
+        private static string[] NextFamilies(string id, string[] current)
+        {
+            var result = new List<string>();
+            bool wasSelected = false;
+            foreach (string family in current ?? Array.Empty<string>())
+            {
+                if (string.IsNullOrEmpty(family)) continue;
+                if (family == id) { wasSelected = true; continue; }
+                result.Add(family);
+            }
+            if (!wasSelected && result.Count < 2) result.Add(id);
+            return result.ToArray();
         }
 
         private void SelectRole(string role)

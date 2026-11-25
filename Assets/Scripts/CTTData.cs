@@ -114,6 +114,8 @@ namespace CatchTheTroublemaker
         public int seed;
         public CTTLobbyPlayer[] players;
         public CTTRoleSlot[] roles;
+        /// <summary>Folder ids of the two chosen families (0-2 entries).</summary>
+        public string[] families;
     }
 
     [Serializable]
@@ -196,6 +198,13 @@ namespace CatchTheTroublemaker
     {
         public string playerId;
         public string role;
+    }
+
+    [Serializable]
+    public class CTTFamiliesRequest
+    {
+        public string playerId;
+        public string[] families;
     }
 
     [Serializable]

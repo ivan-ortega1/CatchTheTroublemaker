@@ -154,6 +154,20 @@ namespace CatchTheTroublemaker
             return image;
         }
 
+        /// <summary>Character sprite used on the family selection cards.</summary>
+        public static Image SpriteImage(Transform parent, string name, Sprite sprite,
+            Vector2 size, Vector2 anchor, Vector2 position)
+        {
+            var rt = Rect(name, parent);
+            Place(rt, anchor, size, position);
+            var image = rt.gameObject.AddComponent<Image>();
+            image.sprite = sprite;
+            image.color = Color.white;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            return image;
+        }
+
         /// <summary>Coloured square with a light frame, used to mark the local player.</summary>
         public static Image FramedIcon(Transform parent, string name, Color color, Vector2 size,
             Vector2 anchor, Vector2 position, float frame = 4f)

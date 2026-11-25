@@ -100,14 +100,21 @@
             <h2 data-i18n="players">Players</h2>
             <ul id="player-list" class="player-list"></ul>
           </div>
-          <div class="panel">
-            <h2 data-i18n="chooseRole">Choose your role</h2>
-            <div id="role-grid" class="role-grid"></div>
-            <div class="lobby-buttons">
-              <button id="btn-start" class="primary" data-i18n="startGame">Start game</button>
-              <button id="btn-leave" class="ghost" data-i18n="leave">Leave room</button>
+          <div class="lobby-right">
+            <div class="panel">
+              <h2 data-i18n="chooseFamilies">Choose the two families</h2>
+              <p class="hint" data-i18n="familyHint">Host picks two different families. Click a chosen one to remove it.</p>
+              <div id="family-grid" class="family-grid"></div>
             </div>
-            <p id="lobby-error" class="error" role="alert"></p>
+            <div class="panel">
+              <h2 data-i18n="chooseRole">Choose your role</h2>
+              <div id="role-grid" class="role-grid"></div>
+              <div class="lobby-buttons">
+                <button id="btn-start" class="primary" data-i18n="startGame">Start game</button>
+                <button id="btn-leave" class="ghost" data-i18n="leave">Leave room</button>
+              </div>
+              <p id="lobby-error" class="error" role="alert"></p>
+            </div>
           </div>
         </div>
       </section>

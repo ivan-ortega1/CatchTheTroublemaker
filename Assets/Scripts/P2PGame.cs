@@ -43,6 +43,18 @@ namespace CatchTheTroublemaker
 
         private const string SoloPlayerId = "local-solo";
 
+        // Family folder ids chosen by the room creator. The simulation still uses
+        // the internal A/B slots, so these only drive display and validation.
+        private string familyA = "";
+        private string familyB = "";
+
+        public string[] Families => FamilyCount == 0
+            ? System.Array.Empty<string>()
+            : FamilyCount == 1 ? new[] { familyA } : new[] { familyA, familyB };
+
+        private int FamilyCount => (string.IsNullOrEmpty(familyA) ? 0 : 1)
+            + (string.IsNullOrEmpty(familyB) ? 0 : 1);
+
         private string localName = "Player";
         private string hostId;   // creator/master of a multiplayer room
         private bool soloSession;
@@ -93,6 +105,7 @@ namespace CatchTheTroublemaker
             localName = Sanitize(name);
             soloSession = true;
             hostId = SoloPlayerId;
+            SetDefaultFamilies();
             peers[PlayerId] = new PeerInfo { id = PlayerId, name = localName, role = "" };
             LobbyChanged?.Invoke(BuildLobby());
         }
@@ -106,6 +119,7 @@ namespace CatchTheTroublemaker
         {
             Leave();
             localName = Sanitize(name);
+            SetDefaultFamilies();
             if (code.Length != 5)
             {
                 Error?.Invoke("Room code must be 5 letters");
@@ -169,6 +183,22 @@ namespace CatchTheTroublemaker
             LobbyChanged?.Invoke(BuildLobby());
         }
 
+        /// <summary>Only the room creator/master may change the two families.</summary>
+        public void SetFamilies(string[] families)
+        {
+            if (!IsActive || !IsHost) return;
+            var selected = new List<string>();
+            if (families != null)
+                foreach (string id in families)
+                    if (!string.IsNullOrEmpty(id) && !selected.Contains(id)) selected.Add(id);
+            if (selected.Count > 2) return;
+
+            familyA = selected.Count > 0 ? selected[0] : "";
+            familyB = selected.Count > 1 ? selected[1] : "";
+            if (transport != null) SayRoster();
+            LobbyChanged?.Invoke(BuildLobby());
+        }
+
         public void StartMatch()
         {
             if (!IsActive || match != null) return;
@@ -189,6 +219,11 @@ namespace CatchTheTroublemaker
             if (!AllRolesChosen)
             {
                 Error?.Invoke(CTTConfig.Tr("needRoles", catalan));
+                return;
+            }
+            if (FamilyCount != 2)
+            {
+                Error?.Invoke(CTTConfig.Tr("needFamilies", catalan));
                 return;
             }
 
@@ -281,12 +316,14 @@ namespace CatchTheTroublemaker
             {
                 case "hello":
                     peer.name = msg.name;
+                    if (msg.id == hostId) ApplyFamilies(msg.families);
                     SayRoster();
                     break;
 
                 case "roster":
                     ApplyRoster(msg.claims);
                     ApplyPeople(msg.people);
+                    if (msg.id == hostId) ApplyFamilies(msg.families);
                     break;
 
                 case "role":
@@ -302,7 +339,8 @@ namespace CatchTheTroublemaker
                     // their own ready seed, so everybody reaches the same agreement.
                     PeerInfo mine;
                     if (peers.TryGetValue(transport.PeerId, out mine) && !mine.ready &&
-                        peers.Count >= CTTConfig.P2pMinRealPlayers && AllRolesChosen)
+                        peers.Count >= CTTConfig.P2pMinRealPlayers && AllRolesChosen &&
+                        FamilyCount == 2)
                     {
                         mine.ready = true;
                         mine.seed = RandomSeed();
@@ -327,7 +365,10 @@ namespace CatchTheTroublemaker
 
         private void SayHello()
         {
-            transport?.Broadcast(new P2PMessage { t = "hello", name = localName });
+            transport?.Broadcast(new P2PMessage
+            {
+                t = "hello", name = localName, families = EncodeFamilies(),
+            });
         }
 
         private void SayRoster()
@@ -338,6 +379,7 @@ namespace CatchTheTroublemaker
                 t = "roster",
                 claims = EncodingClaims(),
                 people = EncodingPeople(),
+                families = EncodeFamilies(),
             });
         }
 
@@ -400,6 +442,28 @@ namespace CatchTheTroublemaker
         private static string SafeField(string value)
         {
             return (value ?? "").Replace('|', ' ').Replace(';', ' ').Replace(':', ' ');
+        }
+
+        private string EncodeFamilies()
+        {
+            return (string.IsNullOrEmpty(familyA) ? "-" : familyA) + "~"
+                + (string.IsNullOrEmpty(familyB) ? "-" : familyB);
+        }
+
+        private void ApplyFamilies(string encoded)
+        {
+            if (string.IsNullOrEmpty(encoded)) return;
+            string[] parts = encoded.Split('~');
+            if (parts.Length != 2) return;
+            familyA = parts[0] == "-" ? "" : parts[0];
+            familyB = parts[1] == "-" ? "" : parts[1];
+        }
+
+        private void SetDefaultFamilies()
+        {
+            string[] defaults = CTTCharacterCatalog.Current.DefaultIds(2);
+            familyA = defaults.Length > 0 ? defaults[0] : "";
+            familyB = defaults.Length > 1 ? defaults[1] : "";
         }
 
         /* ----------------------------- hostless agreement ----------------------------- */
@@ -652,6 +716,7 @@ namespace CatchTheTroublemaker
                 hostId = hostId,
                 players = playerList.ToArray(),
                 roles = roleList.ToArray(),
+                families = Families,
             };
         }
 
