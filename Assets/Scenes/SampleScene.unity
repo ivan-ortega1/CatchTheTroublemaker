@@ -1755,8 +1755,8 @@ MonoBehaviour:
   playerInput: {fileID: 1597938189}
   menuMusic: {fileID: 527676802}
   matchMusic: {fileID: 527676727}
-  hoverClip: {fileID: 8300000, guid: 3399e0bfcb16f40408072719532121c8, type: 3}
-  pressClip: {fileID: 8300000, guid: 0e00c2dbe1581114294f7de856553596, type: 3}
+  hoverClip: {fileID: 8300000, guid: 0e00c2dbe1581114294f7de856553596, type: 3}
+  pressClip: {fileID: 8300000, guid: 3399e0bfcb16f40408072719532121c8, type: 3}
   coinClip: {fileID: 8300000, guid: 8de2eb90fc7600e48ad8318b429264cc, type: 3}
 --- !u!4 &1928719729
 Transform:

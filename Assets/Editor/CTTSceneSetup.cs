@@ -17,8 +17,11 @@ namespace CatchTheTroublemaker.Editor
         public const string ScenePath = "Assets/Scenes/SampleScene.unity";
         private const string MenuClip = "Assets/Audio/Music/Menu&LobbyMusic_ICanFeelItComing.mp3";
         private const string MatchClip = "Assets/Audio/Music/MatchMusic_BigRock.mp3";
-        private const string HoverSfx = "Assets/Audio/Sound/SFX_ButtonHover.wav";
-        private const string PressSfx = "Assets/Audio/Sound/SFX_ButtonPress.wav";
+        // The two exported files were named the other way round: the file called
+        // SFX_ButtonPress contains the hover sound and vice versa. Keep the semantic
+        // GameManager fields and point them at the correct files.
+        private const string HoverSfx = "Assets/Audio/Sound/SFX_ButtonPress.wav";
+        private const string PressSfx = "Assets/Audio/Sound/SFX_ButtonHover.wav";
         private const string CoinSfx = "Assets/Audio/Sound/SFX_CoinPickup.mp3";
 
         [MenuItem("Tools/Catch the Troublemaker/Reset Connection Settings")]
