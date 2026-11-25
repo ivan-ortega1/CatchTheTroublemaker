@@ -588,7 +588,9 @@ namespace CatchTheTroublemaker
             }
 
             match.Tick(simNow, P2PConfig.TickMs / 1000f);
-            StateChanged?.Invoke(match.GetSnapshot(simNow, pendingTick == 0));
+            CTTState snapshot = match.GetSnapshot(simNow, pendingTick == 0);
+            snapshot.events = ParseEvents(match.DrainEvents());
+            StateChanged?.Invoke(snapshot);
             pendingTick++;
             tickOpenedAt = Time.unscaledTime;
 
@@ -668,6 +670,32 @@ namespace CatchTheTroublemaker
             var chars = new char[5];
             for (int i = 0; i < chars.Length; i++) chars[i] = (char)('A' + random.Next(0, 26));
             return new string(chars);
+        }
+
+        /// <summary>Convert the engine's pipe-separated events to the same DTO the
+        /// server sends, so both modes drive identical client effects.</summary>
+        private static CTTEvent[] ParseEvents(string[] raw)
+        {
+            if (raw == null || raw.Length == 0) return System.Array.Empty<CTTEvent>();
+            var result = new List<CTTEvent>();
+            foreach (string line in raw)
+            {
+                string[] p = (line ?? "").Split('|');
+                if (p.Length < 2) continue;
+                var evt = new CTTEvent { type = p[0], id = p[1] };
+                if (p.Length > 2) float.TryParse(p[2], out evt.x);
+                if (p.Length > 3) float.TryParse(p[3], out evt.y);
+                if (p.Length > 4) long.TryParse(p[4], out evt.now);
+                if (evt.type == "finish")
+                {
+                    evt.winnerTeam = p[1];
+                    evt.winnerId = p.Length > 2 ? p[2] : "";
+                    evt.id = "";
+                    if (p.Length > 3) long.TryParse(p[3], out evt.now);
+                }
+                result.Add(evt);
+            }
+            return result.ToArray();
         }
 
         private uint RandomSeed()

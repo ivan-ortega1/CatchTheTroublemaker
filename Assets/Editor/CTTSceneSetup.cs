@@ -17,6 +17,9 @@ namespace CatchTheTroublemaker.Editor
         public const string ScenePath = "Assets/Scenes/SampleScene.unity";
         private const string MenuClip = "Assets/Audio/Music/Menu&LobbyMusic_ICanFeelItComing.mp3";
         private const string MatchClip = "Assets/Audio/Music/MatchMusic_BigRock.mp3";
+        private const string HoverSfx = "Assets/Audio/Sound/SFX_ButtonHover.wav";
+        private const string PressSfx = "Assets/Audio/Sound/SFX_ButtonPress.wav";
+        private const string CoinSfx = "Assets/Audio/Sound/SFX_CoinPickup.mp3";
 
         [MenuItem("Tools/Catch the Troublemaker/Reset Connection Settings")]
         public static void ResetConnectionSettings()
@@ -66,6 +69,12 @@ namespace CatchTheTroublemaker.Editor
             manager.playerInput = input;
 
             ConfigureMusic(manager);
+
+            manager.hoverClip = AssetDatabase.LoadAssetAtPath<AudioClip>(HoverSfx);
+            manager.pressClip = AssetDatabase.LoadAssetAtPath<AudioClip>(PressSfx);
+            manager.coinClip = AssetDatabase.LoadAssetAtPath<AudioClip>(CoinSfx);
+            if (manager.hoverClip == null || manager.pressClip == null || manager.coinClip == null)
+                Debug.LogWarning("[CTT] Some SFX clips are missing in Assets/Audio/Sound.");
 
             EditorUtility.SetDirty(manager);
             EditorSceneManager.MarkSceneDirty(scene);

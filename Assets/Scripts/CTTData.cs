@@ -117,6 +117,18 @@ namespace CatchTheTroublemaker
     }
 
     [Serializable]
+    public class CTTEvent
+    {
+        public string type;
+        public string id;
+        public float x;
+        public float y;
+        public string winnerTeam;
+        public string winnerId;
+        public long now;
+    }
+
+    [Serializable]
     public class CTTState
     {
         public string status;
@@ -126,6 +138,7 @@ namespace CatchTheTroublemaker
         public int goal;
         public CTTCoin[] coins;
         public CTTPlayer[] players;
+        public CTTEvent[] events;
         public CTTResult result;
         public CTTMap map;
         public CTTLobby lobby;

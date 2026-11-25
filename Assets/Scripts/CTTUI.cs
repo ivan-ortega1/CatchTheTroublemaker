@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace CatchTheTroublemaker
 {
@@ -105,6 +106,14 @@ namespace CatchTheTroublemaker
             colors.pressedColor = Color.Lerp(color, Color.black, 0.2f);
             colors.disabledColor = new Color(0.35f, 0.38f, 0.5f, 0.8f);
             button.colors = colors;
+
+            // Shared UI feedback for every button built by the UI factory.
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => { if (button.interactable) CttSfx.Instance?.PlayHover(); });
+            var trigger = rt.gameObject.AddComponent<EventTrigger>();
+            trigger.triggers.Add(enter);
+
+            button.onClick.AddListener(() => CttSfx.Instance?.PlayPress());
             if (onClick != null) button.onClick.AddListener(() => onClick());
             Label(rt, "Caption", text, fontSize, Color.white);
             return button;

@@ -30,6 +30,11 @@ namespace CatchTheTroublemaker
         public AudioSource menuMusic;
         public AudioSource matchMusic;
 
+        [Header("SFX clips (wired in the Inspector)")]
+        public AudioClip hoverClip;
+        public AudioClip pressClip;
+        public AudioClip coinClip;
+
         public GamePhase Phase { get; private set; }
         public string RoomCode { get; private set; }
         public string PlayerId { get; private set; }
@@ -64,6 +69,13 @@ namespace CatchTheTroublemaker
             {
                 if (source.name == "MenuMusic") menuMusic = source;
                 else if (source.name == "MatchMusic") matchMusic = source;
+            }
+
+            // SFX is created at runtime; GameManager owns the clip references.
+            if (GetComponent<CttSfx>() == null)
+            {
+                CttSfx sfx = gameObject.AddComponent<CttSfx>();
+                sfx.Configure(hoverClip, pressClip, coinClip);
             }
 
             if (network == null || ui == null || board == null || playerInput == null)
@@ -366,6 +378,10 @@ namespace CatchTheTroublemaker
             if (snapshot == null) return;
             State = snapshot;
             if (snapshot.lobby != null) Lobby = snapshot.lobby;
+
+            if (snapshot.events != null)
+                foreach (CTTEvent evt in snapshot.events)
+                    if (evt != null && evt.type == "coin") CttSfx.Instance?.PlayCoin();
 
             if (snapshot.status == "playing")
             {
