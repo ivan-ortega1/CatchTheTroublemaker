@@ -385,6 +385,16 @@ l'editor: es va escriure el YAML de l'asset directament amb els GUID i `internal
 extrets dels `.meta` (els PNG estan tallats com a *sprite sheet*, això cal per obtenir
 el sub-asset `Sprite`), i es va deixar l'eina d'editor per regenerar-lo quan calgui.
 
+**Correcció de les targetes en blanc:** l'asset serialitzat pot no estar importat
+quan l'editor encara no ha refet l'AssetDatabase, i llavors `Resources.Load` retorna
+null i les targetes no pinten cap imatge. Perquè sempre surtin els sprites reals de
+`Sprites/Characters/Troublemakers/<família>/`, es van copiar els 12 PNG (idèntics byte
+a byte) a `Assets/Resources/CTTCharacters/<família>/` amb GUID nous, i
+`CTTCharacterCatalog.SpriteFor()` els carrega per ruta amb `Resources.LoadAll<Sprite>`
+(els PNG estan importats com a *sprite sheet*, per això cal `LoadAll`). La UI prefereix
+aquest sprite i només cau al camp de l'asset si la còpia no existeix. L'eina d'editor
+torna a copiar qualsevol fitxer que falti, sense sobreescriure els existents.
+
 ### Verificació
 
 - Roslyn d'Unity 6: **0 errors** (`Assets/Scripts` + `Assets/Editor`, només avisos

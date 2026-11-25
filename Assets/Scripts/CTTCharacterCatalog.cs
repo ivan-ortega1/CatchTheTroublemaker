@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -31,6 +32,24 @@ namespace CatchTheTroublemaker
         };
 
         private static CTTCharacterCatalog current;
+        private static readonly Dictionary<string, Sprite> spriteCache = new Dictionary<string, Sprite>();
+
+        /// <summary>
+        /// Loads one of the real PNGs from Assets/Sprites/Characters/Troublemakers/&lt;family&gt;.
+        /// The editor tool copies those files under Resources so runtime code can reach
+        /// them without AssetDatabase. Sliced textures keep their Sprite as a sub-asset,
+        /// so LoadAll is used instead of Load.
+        /// </summary>
+        public static Sprite SpriteFor(string familyId, string role)
+        {
+            if (string.IsNullOrEmpty(familyId) || string.IsNullOrEmpty(role)) return null;
+            string key = familyId + "/" + role;
+            if (spriteCache.TryGetValue(key, out Sprite cached)) return cached;
+            Sprite[] all = Resources.LoadAll<Sprite>("CTTCharacters/" + key);
+            Sprite sprite = all != null && all.Length > 0 ? all[0] : null;
+            spriteCache[key] = sprite;
+            return sprite;
+        }
 
         public static CTTCharacterCatalog Current
         {

@@ -15,6 +15,7 @@ namespace CatchTheTroublemaker.Editor
     {
         private const string SourceRoot = "Assets/Sprites/Characters/Troublemakers";
         private const string AssetPath = "Assets/Resources/CTTCharacterCatalog.asset";
+        private const string ResourceRoot = "Assets/Resources/CTTCharacters";
 
         [MenuItem("Tools/Catch the Troublemaker/Rebuild Character Catalog")]
         public static void Rebuild()
@@ -42,6 +43,7 @@ namespace CatchTheTroublemaker.Editor
 
             if (!AssetDatabase.IsValidFolder("Assets/Resources"))
                 AssetDatabase.CreateFolder("Assets", "Resources");
+            SyncResourceCopies(families);
 
             CTTCharacterCatalog catalog =
                 AssetDatabase.LoadAssetAtPath<CTTCharacterCatalog>(AssetPath);
@@ -55,6 +57,33 @@ namespace CatchTheTroublemaker.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[CTT] Character catalog rebuilt with " + families.Count + " families.");
+        }
+
+        /// <summary>
+        /// Runtime code cannot read Assets/Sprites directly, so keep byte-for-byte
+        /// copies of the source PNGs under Resources. The family cards load these by
+        /// path; existing copies are left untouched so user edits are not overwritten.
+        /// </summary>
+        private static void SyncResourceCopies(List<CTTCharacterFamily> families)
+        {
+            if (!AssetDatabase.IsValidFolder(ResourceRoot))
+                AssetDatabase.CreateFolder("Assets/Resources", "CTTCharacters");
+            foreach (CTTCharacterFamily family in families)
+            {
+                if (family == null || string.IsNullOrEmpty(family.id)) continue;
+                string folder = ResourceRoot + "/" + family.id;
+                if (!AssetDatabase.IsValidFolder(folder))
+                    AssetDatabase.CreateFolder(ResourceRoot, family.id);
+                string sourceFolder = SourceRoot + "/" + family.id;
+                foreach (string role in new[] { "Troublemaker", "Father", "Mother" })
+                {
+                    string source = sourceFolder + "/" + role + ".png";
+                    string target = folder + "/" + role + ".png";
+                    if (AssetDatabase.LoadMainAssetAtPath(target) == null &&
+                        AssetDatabase.LoadMainAssetAtPath(source) != null)
+                        AssetDatabase.CopyAsset(source, target);
+                }
+            }
         }
 
         private static Sprite FirstSprite(string assetPath)
