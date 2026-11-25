@@ -381,7 +381,7 @@ namespace CatchTheTroublemaker
 
             if (snapshot.events != null)
                 foreach (CTTEvent evt in snapshot.events)
-                    if (evt != null && evt.type == "coin") CttSfx.Instance?.PlayCoin();
+                    if (IsMyCoinEvent(evt)) CttSfx.Instance?.PlayCoin();
 
             if (snapshot.status == "playing")
             {
@@ -397,6 +397,18 @@ namespace CatchTheTroublemaker
             {
                 ui.RenderLobby(Lobby, PlayerId);
             }
+        }
+
+        /// <summary>
+        /// Coin events are broadcast for every player; play the sound only for the
+        /// local player. This covers server mode, P2P Solo ("local-solo") and P2P
+        /// Multi (the transport peer id), because all three set PlayerId before play.
+        /// </summary>
+        private bool IsMyCoinEvent(CTTEvent evt)
+        {
+            return evt != null && evt.type == "coin"
+                && !string.IsNullOrEmpty(PlayerId)
+                && string.Equals(evt.id, PlayerId, StringComparison.Ordinal);
         }
 
         private void OnResultReceived(CTTResult result)
