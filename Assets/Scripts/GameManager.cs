@@ -26,6 +26,8 @@ namespace CatchTheTroublemaker
         private const string LangKey = "ctt_catalan";
         private const string ContrastKey = "ctt_contrast";
 
+        [Header("Music (wired in the Inspector)")]
+        public AudioSource menuMusic;
         public AudioSource matchMusic;
 
         public GamePhase Phase { get; private set; }
@@ -56,6 +58,13 @@ namespace CatchTheTroublemaker
             if (ui == null) ui = FindFirstObjectByType<UIManager>(FindObjectsInactive.Include);
             if (board == null) board = FindFirstObjectByType<BoardRenderer>(FindObjectsInactive.Include);
             if (playerInput == null) playerInput = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+            // Fallback for hand-built scenes: locate the two music sources by name.
+            foreach (AudioSource source in FindObjectsByType<AudioSource>())
+            {
+                if (source.name == "MenuMusic") menuMusic = source;
+                else if (source.name == "MatchMusic") matchMusic = source;
+            }
 
             if (network == null || ui == null || board == null || playerInput == null)
             {
@@ -160,6 +169,29 @@ namespace CatchTheTroublemaker
             Phase = phase;
             ui.ShowPhase(phase);
             if (phase != GamePhase.Playing) board.SetFollowTarget(null);
+            UpdateMusic(phase);
+        }
+
+        /// <summary>Menu/lobby theme in Home+Lobby, match theme while playing,
+        /// silence on the result screen.</summary>
+        private void UpdateMusic(GamePhase phase)
+        {
+            if (menuMusic != null)
+            {
+                if (phase == GamePhase.Home || phase == GamePhase.Lobby)
+                {
+                    if (!menuMusic.isPlaying) menuMusic.Play();
+                }
+                else menuMusic.Stop();
+            }
+            if (matchMusic != null)
+            {
+                if (phase == GamePhase.Playing)
+                {
+                    if (!matchMusic.isPlaying) matchMusic.Play();
+                }
+                else matchMusic.Stop();
+            }
         }
 
         private void EnterGame()
@@ -281,7 +313,6 @@ namespace CatchTheTroublemaker
 
         private void StartMatch()
         {
-            matchMusic.Play();
             if (ui.P2pMode && p2p != null && p2p.IsActive) { p2p.StartMatch(); return; }
             RequestMatch("/start");
         }
@@ -357,7 +388,6 @@ namespace CatchTheTroublemaker
             Result = result;
             SetPhase(GamePhase.Result);
             ui.ShowResult(result);
-            matchMusic.Stop();
         }
 
         private void Fail(string error)

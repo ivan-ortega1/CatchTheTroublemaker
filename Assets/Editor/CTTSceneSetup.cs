@@ -15,6 +15,8 @@ namespace CatchTheTroublemaker.Editor
     public static class CttSceneSetup
     {
         public const string ScenePath = "Assets/Scenes/SampleScene.unity";
+        private const string MenuClip = "Assets/Audio/Music/Menu&LobbyMusic_ICanFeelItComing.mp3";
+        private const string MatchClip = "Assets/Audio/Music/MatchMusic_BigRock.mp3";
 
         [MenuItem("Tools/Catch the Troublemaker/Reset Connection Settings")]
         public static void ResetConnectionSettings()
@@ -63,10 +65,32 @@ namespace CatchTheTroublemaker.Editor
             manager.board = board;
             manager.playerInput = input;
 
+            ConfigureMusic(manager);
+
             EditorUtility.SetDirty(manager);
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Debug.Log("[CTT] Scene setup complete: GameManager + Network/UI/World/Input wired (" + scene.path + ").");
+        }
+
+        private static void ConfigureMusic(GameManager manager)
+        {
+            Transform root = Child(manager.transform, "Music").transform;
+            manager.menuMusic = WireMusic(root, "MenuMusic", MenuClip);
+            manager.matchMusic = WireMusic(root, "MatchMusic", MatchClip);
+        }
+
+        private static AudioSource WireMusic(Transform root, string name, string clipPath)
+        {
+            GameObject go = Child(root, name);
+            AudioSource source = Ensure<AudioSource>(go);
+            source.loop = true;
+            source.playOnAwake = false;
+            source.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPath);
+            if (source.clip == null)
+                Debug.LogWarning("[CTT] Missing music clip: " + clipPath);
+            EditorUtility.SetDirty(source);
+            return source;
         }
 
         private static void ConfigureCamera()
