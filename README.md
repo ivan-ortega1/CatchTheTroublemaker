@@ -120,7 +120,7 @@ Both clients enforce the same rule: only your own parents can catch you. The Uni
 
 When a child is caught they lose **all** their coins, are sent home for 3 seconds and cannot be caught again for 1.5 seconds. Parents may also **confiscate** coins by walking over them (900 ms cooldown per parent).
 
-If a **human troublemaker** uses all three lives they are grounded but stay in the room with their seat, presence and result intact. Their client switches to **spectator mode**: gameplay input stops, the touch controls are hidden, and a free camera takes over (drag or WASD/arrows to pan, wheel/+/− to zoom, reset via the banner button). In Unity, touch drag and pinch zoom work too, and `R`/`Home` reset the view. The match continues until the other troublemaker is grounded, reaches 50 coins, or time runs out.
+If a **human troublemaker** uses all three lives they are grounded but stay in the room with their seat, presence and result intact. Gameplay input stops at once and the touch controls are hidden; after a **2.5 second pause** (with a countdown in the HUD), a free **ghost camera** takes over (drag or WASD/arrows to pan, wheel/+/− to zoom, reset via the banner button). The ghost view is clamped only by the map's **outer wall** — inner walls do not block it. In Unity, touch drag and pinch zoom work too, and `R`/`Home` reset the view. The match continues until the other troublemaker is grounded, reaches 50 coins, or time runs out.
 
 ### How the difficulty is balanced
 

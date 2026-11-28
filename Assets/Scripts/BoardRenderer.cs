@@ -408,6 +408,8 @@ namespace CatchTheTroublemaker
                 }
             }
 
+            // Ghost/follow cameras share this outer-wall-only bound: inner wall
+            // tiles never clip the view, the solid map border always does.
             float halfH = main.orthographicSize;
             float halfW = halfH * main.aspect;
             float limitX = Mathf.Max(0f, cols * 0.5f - halfW);

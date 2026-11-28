@@ -161,7 +161,9 @@ namespace CatchTheTroublemaker
             { "spectatorHint", new[] {
                 "Free camera: WASD / arrows or drag to pan · scroll or +/− to zoom · R / Home to reset",
                 "Càmera lliure: WASD / fletxes o arrossega per moure · roda o +/− per ampliar · R / Home per reset" } },
-            { "spectatorHintShort", new[] { "FREE CAMERA", "CÀMERA LLIURE" } },
+            { "spectatorHintShort", new[] { "GHOST CAMERA", "CÀMERA ESPECTRE" } },
+            { "ghostIn", new[] { "Ghost camera in {0}s", "Càmera espectre en {0}s" } },
+            { "ghostSoon", new[] { "GHOST CAMERA…", "CÀMERA ESPECTRE…" } },
             { "lang", new[] { "CA / EN", "EN / CA" } },
             { "contrast", new[] { "HIGH CONTRAST", "ALT CONTRAST" } },
             { "invalidCode", new[] { "A room code has 5 characters.", "Un codi de sala té 5 caràcters." } },

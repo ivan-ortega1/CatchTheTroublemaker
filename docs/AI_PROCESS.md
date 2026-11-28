@@ -551,20 +551,27 @@ El motor no es toca. Un nen humà amb 0 vides ja continua al snapshot amb
 i paritat Servidor/P2P es mantenen; només el client canvia de **vista**. L'usuari
 va triar explícitament càmera lliure en lloc de seguir un altre jugador.
 
-- **Navegador:** `isSpectating()` ho dedueix del snapshot. En entrar s'atura
-  l'enviament d'intents, es netegen tecles/pad i apareix un rètol amb
+- **Navegador:** `isDeadTroublemaker()` ho dedueix del snapshot. En entrar s'atura
+  l'enviament d'intents i es netegen tecles/pad, però la càmera no es lliura fins
+  2,5 s després (`state.dead` / `state.ghostAt`): mentrestant l'HUD mostra
+  «Ghost camera in 2.5s» i el rètol resta amagat. En acabar apareix el rètol amb
   zoom in/out/reset. `draw()` substitueix la transformació de "mapa sencer" per
   `state.camera` (centre en caselles + zoom 1–3): arrossegar, roda del ratolí,
-  WASD/fletxes i botons. El zoom manté fixat el punt sota el cursor i la càmera
-  es limita al mapa amb un marge d'una casella.
-- **Unity:** `GameManager.IsLocalSpectator()` fa el mateix càlcul i ignora
+  WASD/fletxes i botons. El zoom manté fixat el punt sota el cursor.
+- **Unity:** `GameManager.IsLocalGrounded()` fa el mateix càlcul i ignora
   l'input de joc; en P2P a més posa l'input local a neutre perquè l'última
-  direcció premuda no continuï emesa a cada tick. `BoardRenderer.SetSpectator()`
-  substitueix el seguiment del jugador per un objectiu lliure controlat amb el
-  nou Input System (tecles, arrossegar amb ratolí, roda i gestos tàctils de
-  drag/pinch; R/Home restableixen zoom i centre). `UIManager` amaga el pad
-  tàctil, mostra el rètol i el missatge CA/EN (conservat també a `Refresh()`), i
-  restaura `SetFollowTarget` quan es torna a jugar.
+  direcció premuda no continuï emesa a cada tick. L'estat `ghostAt` retarda
+  `board.SetSpectator()` 2,5 s i `UIManager.UpdateHud(..., ghostIn)` mostra el
+  compte enrere CA/EN. `BoardRenderer.SetSpectator()` substitueix el seguiment
+  del jugador per un objectiu lliure controlat amb el nou Input System (tecles,
+  arrossegar amb ratolí, roda i gestos tàctils de drag/pinch; R/Home
+  restableixen zoom i centre). `UIManager` amaga el pad tàctil des de la mort,
+  mostra el rètol en acabar el retard (conservat també a `Refresh()`), i restaura
+  `SetFollowTarget` quan es torna a jugar.
+- **Parets:** el ghost només xoca amb el marc exterior del mapa. El
+  `clampSpectatorCamera()` del navegador i el `LateUpdate()` d'Unity només fan servir
+  `cols/rows`; cap `tiles[i] === 1` interior participa en el càlcul. El marge
+  d'una casella que permetia sortir del mapa s'ha eliminat al navegador.
 
 ### Verificació
 
@@ -572,10 +579,44 @@ va triar explícitament càmera lliure en lloc de seguir un altre jugador.
   snapshot com a humà connectat i el seu intent s'ignora.
 - Roslyn d'Unity 6: **0 errors**. `node --check public/app.js`: net.
 - Prova de navegador amb un *launcher* temporal (1 vida per al nen humà, 50 per a
-  l'altre, `coinGoal=500`, port 3110): en ser agafat, l'HUD mostra «Spectator /
-  You're out — spectating / FREE CAMERA», el banner és visible, els controls tàctils
-  tenen `display:none` i el canvas porta la classe `spectating`. Els botons +/−, la
-  roda i la fletxa dreta van canviar la transformació de la càmera i **Reset view**
-  la va restaurar. Després de l'eliminació no es va enviar cap `POST /input` més
-  (6 sol·licituds abans, 0 després) i la consola va quedar neta. Cap ajust de prova
-  es va desar al projecte.
+  l'altre, `coinGoal=500`, port 3110): en ser agafat, durant la pausa l'HUD deia
+  «Ghost camera in 2.5s / GHOST CAMERA…», el rètol era amagat i els controls ja
+  tenen `display:none`. El rètol i el `canvas.spectating` van aparèixer **2507,5 ms**
+  després, amb «You're out — spectating / GHOST CAMERA». Els botons +/−, la roda i
+  la fletxa dreta van canviar la transformació de la càmera i **Reset view** la va
+  restaurar. No es va enviar cap `POST /input` més (7 abans, 7 després) i la
+  consola va quedar neta en recarregar. Cap ajust de prova es va desar al projecte.
+
+---
+
+## 17. Retard del ghost i col·lisió només amb el marc exterior
+
+> "The recently dead troublemaker player will have a 2.5 second delay before entering into free-camera (ghost mode), and the ghost players will only have collisions with the outer walls and not the inner walls in the map"
+
+### Interpretació
+
+El motor no es toca: `eliminated: true` ja identifica el nen mort i tots els
+clients reben el mateix snapshot. El retard és una decoració local (2,5 s des del
+moment en què cada client detecta la pròpia mort), així que no cal afegir
+timestamps ni camps nous al protocol. La mort, en canvi, desactiva l'input de joc
+immediatament; només la càmera espera.
+
+### Canvis
+
+- **Navegador:** `state.dead` s'arma amb `ghostAt = now + 2500`. `state.spectator`
+  (i per tant el rètol, el canvas `spectating` i el pan/zoom) no es posa a `true`
+  fins que expira. L'HUD mostra el compte enrere i «GHOST CAMERA…» durant la pausa.
+- **Unity:** `GameManager` fa el mateix amb `Time.unscaledTime`, passa `ghostIn`
+  a `UIManager.UpdateHud()` i només crida `board.SetSpectator(true)` quan arriba a
+  zero. `Refresh()` conserva tant `Spectating` com el compte enrere.
+- **Marc exterior:** `clampSpectatorCamera()` deixà de permetre una casella de
+  *overscroll* i ara centra l'eix si el viewport és més gran que el mapa. Unity ja
+  feia servir `Mathf.Max(0f, cols * 0.5f - halfW)`. En cap cas es consulten les
+  caselles interiors (`tiles[i] === 1`), així que el ghost les travessa lliurement.
+
+### Verificació
+
+La mateixa prova de navegador descrita a la secció 16 va mesurar **2507,5 ms**
+entre «Ghost camera in» i l'aparició del rètol, sense nous `POST /input` ni errors
+de consola. Roslyn i `npm test` es van tornar a executar sense canvis respecte al
+resultat anterior.

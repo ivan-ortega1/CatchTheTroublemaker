@@ -30,7 +30,8 @@ const I18N = {
     sprintShort: 'SPRINT', canvasAria: 'Game map showing both families, coins and obstacles',
     spectatorOut: "You're out — spectating",
     spectatorHint: 'Drag to pan · scroll or +/− to zoom · WASD/arrows pan too',
-    spectatorHintShort: 'FREE CAMERA', zoomIn: 'Zoom in', zoomOut: 'Zoom out', resetView: 'Reset view',
+    spectatorHintShort: 'GHOST CAMERA', zoomIn: 'Zoom in', zoomOut: 'Zoom out', resetView: 'Reset view',
+    ghostIn: 'Ghost camera in', ghostSoon: 'GHOST CAMERA…',
     gameOver: 'Game over', playAgain: 'Play again', backHome: 'Back home',
     parentsWin: 'The parents win!', kidsWin: 'gets away with it!',
     reasonGoal: 'Fifty coins, straight into the pockets.',
@@ -71,7 +72,8 @@ const I18N = {
     sprintShort: 'ESPRINT', canvasAria: 'Mapa de la partida amb les dues famílies, monedes i obstacles',
     spectatorOut: 'Ets fora — espectador',
     spectatorHint: 'Arrossega per desplaçar · roda o +/− per ampliar · WASD/fletxes també',
-    spectatorHintShort: 'CÀMERA LLIURE', zoomIn: 'Amplia', zoomOut: 'Allunya', resetView: 'Restableix la vista',
+    spectatorHintShort: 'CÀMERA ESPECTRE', zoomIn: 'Amplia', zoomOut: 'Allunya', resetView: 'Restableix la vista',
+    ghostIn: 'Càmera espectre en', ghostSoon: 'CÀMERA ESPECTRE…',
     gameOver: 'Fi de la partida', playAgain: 'Jugar de nou', backHome: 'Tornar a l’inici',
     parentsWin: 'Els pares guanyen!', kidsWin: 'se’n surt!',
     reasonGoal: 'Cinquanta monedes directes a les butxaques.',
@@ -85,6 +87,9 @@ const I18N = {
     footer: 'Projecte desenvolupat amb IA · Node.js + Server-Sent Events · sense dependències externes',
   },
 };
+
+// A grounded troublemaker waits briefly before the free ghost camera takes over.
+const GHOST_DELAY_MS = 2500;
 
 const FALLBACK_ROLES = {
   fatherA: { short: 'FA', shape: 'square', color: '#ff8a5b', name: { en: 'Dad A', ca: 'Pare A' } },
@@ -156,7 +161,10 @@ const state = {
   dialogueAudio: null,
   dialogueUrl: null,
   lastDialogueResultKey: null,
-  // Spectator free camera: centre tile coordinates plus zoom (1 = whole map).
+  // Ghost camera: centre tile coordinates plus zoom (1 = whole map). `dead`
+  // starts immediately on grounding; `spectator` only flips after the delay.
+  dead: false,
+  ghostAt: 0,
   spectator: false,
   camera: { x: 0, y: 0, zoom: 1 },
   view: { scale: 1, ox: 0, oy: 0 },
@@ -170,8 +178,8 @@ const roleName = (role) => roleMeta(role).name?.[state.lang] || role;
 const teamName = (team) => TEAM_NAMES[team]?.[state.lang] || team;
 
 // A grounded troublemaker keeps their seat in every snapshot (so presence and
-// the result still work) but switches to the free spectator camera locally.
-function isSpectating(snap) {
+// the result still work). Input stops at once; the ghost camera starts later.
+function isDeadTroublemaker(snap) {
   if (!snap || !state.playerId) return false;
   const me = snap.players?.find((p) => p.id === state.playerId);
   return !me || (me.team === 'troublemakers' && !!me.eliminated);
@@ -580,7 +588,7 @@ function bindInput() {
 
   setInterval(() => {
     if (state.screen !== 'game' || !state.snapshot || !state.code || !state.playerId) return;
-    if (isSpectating(state.snapshot)) return; // spectators no longer drive a character
+    if (isDeadTroublemaker(state.snapshot)) return; // a dead player cannot drive a character during the delay either
     const intent = currentIntent();
     const sig = `${intent.dx}|${intent.dy}|${intent.sprint}`;
     if (sig !== state.lastInputSig || Date.now() - state.lastInputAt > 1200) {
@@ -596,9 +604,9 @@ function bindInput() {
 const canvas = $('game-canvas');
 const ctx = canvas.getContext('2d');
 
-/* ---------------- Spectator free camera ---------------- */
-// Only grounded human troublemakers get this. The map is still drawn from the
-// same snapshots; only the view transform changes.
+/* ---------------- Ghost free camera ---------------- */
+// Only grounded human troublemakers get this, and only after the short delay.
+// The map is still drawn from the same snapshots; only the view transform changes.
 
 function baseScale() {
   return state.map ? Math.min(canvas.width / state.map.cols, canvas.height / state.map.rows) : 1;
@@ -611,13 +619,13 @@ function clampSpectatorCamera() {
   const scale = baseScale() * cam.zoom;
   const halfW = canvas.width / (2 * scale);
   const halfH = canvas.height / (2 * scale);
-  // One tile of overscroll keeps the map edge in view without losing the camera.
-  const minX = Math.min(state.map.cols / 2, halfW - 1);
-  const maxX = Math.max(state.map.cols / 2, state.map.cols - halfW + 1);
-  const minY = Math.min(state.map.rows / 2, halfH - 1);
-  const maxY = Math.max(state.map.rows / 2, state.map.rows - halfH + 1);
-  cam.x = Math.max(minX, Math.min(maxX, cam.x));
-  cam.y = Math.max(minY, Math.min(maxY, cam.y));
+  // The ghost may pass through inner wall tiles, but the view stops at the solid
+  // outer border. If an axis is smaller than the viewport, centre it instead.
+  const clampAxis = (value, size, halfView) => halfView >= size / 2
+    ? size / 2
+    : Math.max(halfView, Math.min(size - halfView, value));
+  cam.x = clampAxis(cam.x, state.map.cols, halfW);
+  cam.y = clampAxis(cam.y, state.map.rows, halfH);
 }
 
 function resetSpectatorCamera() {
@@ -687,6 +695,8 @@ function enterGame() {
   state.renderPositions = new Map();
   state.particles = [];
   state.lastInputSig = '';
+  state.dead = false;
+  state.ghostAt = 0;
   state.spectator = false;
   endSpectatorDrag();
   resetSpectatorCamera();
@@ -947,10 +957,26 @@ function draw(now) {
 
 function updateHUD(snap) {
   const me = snap.players.find((p) => p.id === state.playerId);
-  const spectating = isSpectating(snap);
+  const dead = isDeadTroublemaker(snap);
+  const now = performance.now();
+
+  if (dead && !state.dead) {
+    // Grounding is immediate: drop controls and arm the ghost camera timer.
+    state.dead = true;
+    state.ghostAt = now + GHOST_DELAY_MS;
+    state.keys.clear();
+    state.touch = {};
+    state.lastInputSig = '';
+    endSpectatorDrag();
+  } else if (!dead && state.dead) {
+    state.dead = false;
+    state.ghostAt = 0;
+  }
+  const remaining = state.dead ? Math.max(0, state.ghostAt - now) : 0;
+  const spectating = state.dead && remaining === 0;
+
   if (spectating !== state.spectator) {
-    // Entering or leaving spectator mode: drop any held movement input and
-    // start the free camera from the centre of the map.
+    // Entering/leaving ghost mode: drop held input and start from map centre.
     state.keys.clear();
     state.touch = {};
     state.lastInputSig = '';
@@ -958,7 +984,7 @@ function updateHUD(snap) {
     if (spectating) resetSpectatorCamera();
   }
   state.spectator = spectating;
-  $('screen-game').classList.toggle('spectator', spectating);
+  $('screen-game').classList.toggle('spectator', dead);
   $('spectator-banner').hidden = !spectating;
   canvas.classList.toggle('spectating', spectating);
 
@@ -981,11 +1007,15 @@ function updateHUD(snap) {
   }
 
   if (!spectating && me) {
-    const child = snap.players.find((p) => p.team === 'troublemakers' && p.family === me.family);
-    if (me.team === 'troublemakers') {
-      $('hud-lives').textContent = `${me.coins}/${snap.goal} ${t('statCoinsShort')} · ${me.lives} ${t('statLives')}`;
-    } else if (child) {
-      $('hud-lives').textContent = `${roleName(child.role)}: ${child.coins}/${snap.goal} ${t('statCoinsShort')} · ${child.lives} ${t('statLives')}`;
+    if (state.dead && remaining > 0) {
+      $('hud-lives').textContent = `${t('ghostIn')} ${(remaining / 1000).toFixed(1)}s`;
+    } else {
+      const child = snap.players.find((p) => p.team === 'troublemakers' && p.family === me.family);
+      if (me.team === 'troublemakers') {
+        $('hud-lives').textContent = `${me.coins}/${snap.goal} ${t('statCoinsShort')} · ${me.lives} ${t('statLives')}`;
+      } else if (child) {
+        $('hud-lives').textContent = `${roleName(child.role)}: ${child.coins}/${snap.goal} ${t('statCoinsShort')} · ${child.lives} ${t('statLives')}`;
+      }
     }
   }
 
@@ -1003,6 +1033,9 @@ function updateHUD(snap) {
   if (spectating) {
     $('sprint-fill').style.width = '0%';
     $('sprint-label').textContent = t('spectatorHintShort');
+  } else if (state.dead && remaining > 0) {
+    $('sprint-fill').style.width = '0%';
+    $('sprint-label').textContent = t('ghostSoon');
   } else if (me) {
     const cooldown = state.config.sprint?.cooldownMs || 6500;
     $('sprint-fill').style.width = `${Math.max(0, 100 - (me.sprintIn / cooldown) * 100)}%`;

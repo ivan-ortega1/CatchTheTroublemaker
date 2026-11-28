@@ -90,9 +90,10 @@ The runtime scripts now live in `Assets/Scripts/`; this folder keeps the client 
 - **World-space 2D:** the map is one sprite generated with `Texture2D.SetPixels32`
   (16 px per tile); coins and players are `SpriteRenderer` objects, and the camera
   follows the local player with smoothing and map-bounds clamping. A human troublemaker
-  who loses all lives keeps their seat but switches to a free spectator camera
-  (WASD/arrows, drag/pinch, wheel/zoom keys, `R`/`Home` to reset), with the HUD touch
-  pad hidden and a CA/EN spectator banner.
+  who loses all lives keeps their seat; input stops immediately and, after a 2.5 s HUD
+  countdown, a free ghost camera takes over (WASD/arrows, drag/pinch, wheel/zoom keys,
+  `R`/`Home` to reset). The ghost is bounded only by the outer map wall — inner walls
+  are ignored — and the HUD touch pad is hidden with a CA/EN spectator banner.
 - **Characters are selected-family sprites:** `fatherA`/`motherA`/`troublemakerA` come
   from family A and the B roles from family B. The menu legend, lobby cards, HUD strip,
   score tags and world `SpriteRenderer` objects all use the same art. The local player

@@ -34,6 +34,9 @@ namespace CatchTheTroublemaker
         /// <summary>True while the local player is a grounded troublemaker spectator.</summary>
         public bool Spectating { get; private set; }
 
+        /// <summary>True from grounding until ghost mode ends, including the pause.</summary>
+        public bool Grounded { get; private set; }
+
         public int TouchX { get; private set; }
         public int TouchY { get; private set; }
         public bool TouchSprint { get; private set; }
@@ -86,6 +89,7 @@ namespace CatchTheTroublemaker
         private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, familyCaption, familyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
         private Text spectatorHint;
+        private float lastGhostIn;
         private RectTransform touchPad, sprintButtonRect;
         private Image resultSpeakerIcon;
         private Text resultSpeakerLabel;
@@ -555,6 +559,8 @@ namespace CatchTheTroublemaker
                 TouchX = TouchY = 0;
                 TouchSprint = false;
                 Spectating = false;
+                Grounded = false;
+                lastGhostIn = 0f;
                 if (spectatorHint != null) spectatorHint.gameObject.SetActive(false);
                 if (touchPad != null) touchPad.gameObject.SetActive(true);
                 if (sprintButtonRect != null) sprintButtonRect.gameObject.SetActive(true);
@@ -659,21 +665,27 @@ namespace CatchTheTroublemaker
             }
         }
 
-        public void UpdateHud(CTTState snapshot, string playerId, bool spectating = false)
+        public void UpdateHud(CTTState snapshot, string playerId, bool spectating = false, float ghostInSeconds = 0f)
         {
 
             if (snapshot == null) return;
             EnsureBuilt();
+            bool ca = game != null && game.Catalan;
             Spectating = spectating;
-            if (touchPad != null) touchPad.gameObject.SetActive(!spectating);
-            if (sprintButtonRect != null) sprintButtonRect.gameObject.SetActive(!spectating);
+            Grounded = spectating || ghostInSeconds > 0f;
+            lastGhostIn = ghostInSeconds;
+            // Controls go away as soon as the player dies, not only when the camera flips.
+            if (touchPad != null) touchPad.gameObject.SetActive(!Grounded);
+            if (sprintButtonRect != null) sprintButtonRect.gameObject.SetActive(!Grounded);
             if (spectatorHint != null)
             {
-                spectatorHint.gameObject.SetActive(spectating);
-                if (spectating) spectatorHint.text = CTTConfig.Tr("spectatorHint", game != null && game.Catalan);
+                spectatorHint.gameObject.SetActive(Grounded);
+                if (spectating) spectatorHint.text = CTTConfig.Tr("spectatorHint", ca);
+                else if (ghostInSeconds > 0f)
+                    spectatorHint.text = string.Format(
+                        CTTConfig.Tr("ghostIn", ca), ghostInSeconds.ToString("0.0"));
             }
-            if (spectating) { TouchX = TouchY = 0; TouchSprint = false; }
-            bool ca = game != null && game.Catalan;
+            if (Grounded) { TouchX = TouchY = 0; TouchSprint = false; }
             RememberFamilies(snapshot.lobby);
             string[] families = snapshot.lobby != null && snapshot.lobby.families != null
                 ? snapshot.lobby.families : lastFamilies;
@@ -700,8 +712,11 @@ namespace CatchTheTroublemaker
             {
                 hudRole.text = CTTConfig.Tr("spectator", ca);
                 CttUi.SetSprite(hudRoleIcon, null, CttUi.Muted);
-                hudLives.text = spectating ? CTTConfig.Tr("spectatorOut", ca) : "";
-                hudSprint.text = spectating ? CTTConfig.Tr("spectatorHintShort", ca) : "";
+                hudLives.text = spectating ? CTTConfig.Tr("spectatorOut", ca)
+                    : (ghostInSeconds > 0f
+                        ? string.Format(CTTConfig.Tr("ghostIn", ca), ghostInSeconds.ToString("0.0")) : "");
+                hudSprint.text = spectating ? CTTConfig.Tr("spectatorHintShort", ca)
+                    : (ghostInSeconds > 0f ? CTTConfig.Tr("ghostSoon", ca) : "");
                 return;
             }
 
@@ -710,12 +725,20 @@ namespace CatchTheTroublemaker
                 CTTConfig.ColorOf(me.role, game != null && game.HighContrast));
             hudRole.text = (ca ? "ETS  " : "YOU ARE  ") + CTTConfig.RoleName(me.role, ca);
             bool kids = me.team == "troublemakers";
-            hudLives.text = kids
-                ? (ca ? "VIDES  " : "LIVES  ") + me.lives
-                : (ca ? "Pares" : "Parents");
-            hudSprint.text = me.sprintIn > 0.01f
-                ? (ca ? "Esprint " : "Sprint ") + me.sprintIn.ToString("0.0") + "s"
-                : CTTConfig.Tr("ready", ca);
+            if (ghostInSeconds > 0f)
+            {
+                hudLives.text = string.Format(CTTConfig.Tr("ghostIn", ca), ghostInSeconds.ToString("0.0"));
+                hudSprint.text = CTTConfig.Tr("ghostSoon", ca);
+            }
+            else
+            {
+                hudLives.text = kids
+                    ? (ca ? "VIDES  " : "LIVES  ") + me.lives
+                    : (ca ? "Pares" : "Parents");
+                hudSprint.text = me.sprintIn > 0.01f
+                    ? (ca ? "Esprint " : "Sprint ") + me.sprintIn.ToString("0.0") + "s"
+                    : CTTConfig.Tr("ready", ca);
+            }
         }
 
         /// <summary>Keeps the six character sprites in sync with the snapshot.</summary>
@@ -796,7 +819,7 @@ namespace CatchTheTroublemaker
             if (familyCaption != null) familyCaption.text = CTTConfig.Tr("chooseFamilies", catalan);
             if (familyHint != null) familyHint.text = CTTConfig.Tr("familyHint", catalan);
             if (lobby != null) RenderLobby(lobby, playerId);
-            if (state != null && current == GamePhase.Playing) UpdateHud(state, playerId, Spectating);
+            if (state != null && current == GamePhase.Playing) UpdateHud(state, playerId, Spectating, lastGhostIn);
             if (result != null && current == GamePhase.Result) ShowResult(result);
         }
 

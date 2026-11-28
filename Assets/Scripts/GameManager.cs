@@ -46,10 +46,16 @@ namespace CatchTheTroublemaker
         public CTTState State { get; private set; }
         public CTTResult Result { get; private set; }
 
+        // A grounded troublemaker is dead immediately, but the free ghost camera
+        // only takes over after this pause (same value in both clients).
+        private const float GhostDelaySeconds = 2.5f;
+
         private CttLanDiscovery discovery;
         private P2PGame p2p;
         private float nextInputAt;
         private string lastDialogueKey;
+        private bool localGrounded;
+        private float ghostAt;
 
         private void Awake()
         {
@@ -160,11 +166,11 @@ namespace CatchTheTroublemaker
         {
             if (Phase != GamePhase.Playing || playerInput == null) return;
 
-            // A grounded troublemaker no longer drives a character. BoardRenderer
-            // handles the free camera input instead. In P2P the local input is also
+            // A grounded troublemaker stops driving a character at once, even during
+            // the pause before the ghost camera appears. In P2P the local input is
             // broadcast every tick, so explicitly neutralise it (otherwise the last
             // held direction would keep being sent after grounding).
-            if (IsLocalSpectator(State))
+            if (IsLocalGrounded(State))
             {
                 if (ui.P2pMode && p2p != null && p2p.IsActive) p2p.SetLocalInput(0, 0, false);
                 return;
@@ -194,6 +200,8 @@ namespace CatchTheTroublemaker
         private void SetPhase(GamePhase phase)
         {
             Phase = phase;
+            localGrounded = false;
+            ghostAt = 0f;
             ui.ShowPhase(phase);
             board.SetSpectator(false);
             if (phase != GamePhase.Playing) board.SetFollowTarget(null);
@@ -455,11 +463,24 @@ namespace CatchTheTroublemaker
             if (snapshot.status == "playing")
             {
                 if (Phase != GamePhase.Playing) EnterGame();
-                bool spectating = IsLocalSpectator(snapshot);
+                bool grounded = IsLocalGrounded(snapshot);
+                if (grounded && !localGrounded)
+                {
+                    localGrounded = true;
+                    ghostAt = Time.unscaledTime + GhostDelaySeconds;
+                }
+                else if (!grounded && localGrounded)
+                {
+                    localGrounded = false;
+                    ghostAt = 0f;
+                }
+
+                float ghostIn = localGrounded ? Mathf.Max(0f, ghostAt - Time.unscaledTime) : 0f;
+                bool spectating = localGrounded && ghostIn <= 0f;
                 board.SetSpectator(spectating);
                 if (!spectating) board.SetFollowTarget(PlayerId);
                 board.ApplyState(snapshot);
-                ui.UpdateHud(snapshot, PlayerId, spectating);
+                ui.UpdateHud(snapshot, PlayerId, spectating, ghostIn);
             }
             else if (snapshot.status == "finished" && snapshot.result != null)
             {
@@ -473,9 +494,10 @@ namespace CatchTheTroublemaker
 
         /// <summary>
         /// A troublemaker who used all three lives keeps their seat in every snapshot,
-        /// but switches to a free spectator camera. Missing players get the same view.
+        /// but stops being playable. Missing players get the same ghost treatment.
+        /// The free camera is switched on separately, after the short delay.
         /// </summary>
-        private bool IsLocalSpectator(CTTState snapshot)
+        private bool IsLocalGrounded(CTTState snapshot)
         {
             if (snapshot == null || string.IsNullOrEmpty(PlayerId)) return false;
             CTTPlayer me = null;
