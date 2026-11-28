@@ -157,6 +157,11 @@ namespace CatchTheTroublemaker
             { "collected", new[] { "COINS", "MONEDES" } },
             { "confiscated", new[] { "CONFISCATED", "CONFISCADES" } },
             { "spectator", new[] { "SPECTATOR", "ESPECTADOR" } },
+            { "spectatorOut", new[] { "YOU'RE OUT — SPECTATING", "ETS FORA — ESPECTADOR" } },
+            { "spectatorHint", new[] {
+                "Free camera: WASD / arrows or drag to pan · scroll or +/− to zoom · R / Home to reset",
+                "Càmera lliure: WASD / fletxes o arrossega per moure · roda o +/− per ampliar · R / Home per reset" } },
+            { "spectatorHintShort", new[] { "FREE CAMERA", "CÀMERA LLIURE" } },
             { "lang", new[] { "CA / EN", "EN / CA" } },
             { "contrast", new[] { "HIGH CONTRAST", "ALT CONTRAST" } },
             { "invalidCode", new[] { "A room code has 5 characters.", "Un codi de sala té 5 caràcters." } },

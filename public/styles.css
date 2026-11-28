@@ -245,6 +245,27 @@ p { margin: 0 0 12px; }
 .toast.confiscate { border-left-color: var(--accent-2); }
 @keyframes toastIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
 
+/* ---- Spectator free camera (grounded human troublemakers) ---- */
+.spectator-banner {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 3;
+  display: grid; justify-items: center; gap: 3px; max-width: 92%;
+  background: rgba(10, 13, 34, 0.88); border: 1px solid var(--line); border-radius: 14px;
+  padding: 8px 14px; backdrop-filter: blur(6px);
+}
+.spectator-banner[hidden] { display: none; }
+.spectator-banner strong { color: var(--accent); font-size: 0.88rem; }
+.spectator-banner span { color: var(--muted); font-size: 0.74rem; text-align: center; }
+.spectator-controls { display: flex; gap: 8px; margin-top: 4px; }
+.spectator-btn {
+  min-width: 34px; height: 30px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: rgba(255,255,255,0.09);
+  color: var(--text); font-weight: 800; font-size: 0.85rem; touch-action: manipulation;
+}
+.spectator-btn.wide { min-width: 110px; }
+#game-canvas.spectating { cursor: grab; touch-action: none; }
+#game-canvas.spectating.dragging { cursor: grabbing; }
+#screen-game.spectator .controls-row { display: none; }
+
 .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
 kbd { background: rgba(255,255,255,0.12); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; font-family: inherit; font-size: 0.8rem; }
 .touch-controls { display: flex; align-items: center; gap: 14px; }

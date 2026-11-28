@@ -155,6 +155,15 @@
                   role="img" data-i18n-aria="canvasAria"
                   aria-label="Game map showing both families, coins and obstacles"></canvas>
           <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+          <div id="spectator-banner" class="spectator-banner" hidden>
+            <strong data-i18n="spectatorOut">You're out — spectating</strong>
+            <span data-i18n="spectatorHint">Drag to pan · scroll or +/− to zoom · WASD/arrows pan too</span>
+            <div class="spectator-controls">
+              <button id="btn-zoom-out" class="spectator-btn" data-i18n-aria="zoomOut" aria-label="Zoom out">−</button>
+              <button id="btn-reset-view" class="spectator-btn wide" data-i18n="resetView">Reset view</button>
+              <button id="btn-zoom-in" class="spectator-btn" data-i18n-aria="zoomIn" aria-label="Zoom in">+</button>
+            </div>
+          </div>
         </div>
 
         <div class="controls-row">

@@ -120,6 +120,8 @@ Both clients enforce the same rule: only your own parents can catch you. The Uni
 
 When a child is caught they lose **all** their coins, are sent home for 3 seconds and cannot be caught again for 1.5 seconds. Parents may also **confiscate** coins by walking over them (900 ms cooldown per parent).
 
+If a **human troublemaker** uses all three lives they are grounded but stay in the room with their seat, presence and result intact. Their client switches to **spectator mode**: gameplay input stops, the touch controls are hidden, and a free camera takes over (drag or WASD/arrows to pan, wheel/+/− to zoom, reset via the banner button). In Unity, touch drag and pinch zoom work too, and `R`/`Home` reset the view. The match continues until the other troublemaker is grounded, reaches 50 coins, or time runs out.
+
 ### How the difficulty is balanced
 
 The "only your own parents can catch you" rule heavily favours the kids, so the following counters were added:
@@ -221,7 +223,7 @@ Example result:
 ## Verification
 
 ```bash
-npm test          # 17 tests: engine rules + HTTP API + no-SSE presence
+npm test          # 18 tests: engine rules + HTTP API + no-SSE presence + grounded-spectator snapshot
 ```
 
 A browser smoke test was also performed: a room was created, a role chosen, the match started, the SSE stream delivered state, a coin was collected and a valid catch fired (see `docs/AI_PROCESS.md`). Dialogue was checked in-browser too: all eight clips return 200 with an audio MIME type and decode, a timeout match played `ClassicCaillou/DIA_Troublemakerdefeat.mp3`, and a coin-goal match played `JonathanJohnson/DIA_Troublemakervictory.wav` — both with a clean console.

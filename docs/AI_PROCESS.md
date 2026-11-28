@@ -537,3 +537,45 @@ metadades de presentació, així que l'equilibri i la paritat JS↔C# no es alte
   `coinGoal` a 1 i les famílies `JonathanJohnson` / `LittleBill`, un nen va arribar a
   la meta: «Troublemaker A · victory» i `JonathanJohnson/DIA_Troublemakervictory.wav`.
   Consola neta en ambdós casos. Cap d'aquests ajustos de prova es va desar al projecte.
+
+---
+
+## 16. Mode espectador amb càmera lliure
+
+> "Add an spectator mode for real players when they lost all their lives if they're playing as a troublemaker character"
+
+### Decisió
+
+El motor no es toca. Un nen humà amb 0 vides ja continua al snapshot amb
+`eliminated: true`, `connected: true` i `isBot: false`, així que presència, resultat
+i paritat Servidor/P2P es mantenen; només el client canvia de **vista**. L'usuari
+va triar explícitament càmera lliure en lloc de seguir un altre jugador.
+
+- **Navegador:** `isSpectating()` ho dedueix del snapshot. En entrar s'atura
+  l'enviament d'intents, es netegen tecles/pad i apareix un rètol amb
+  zoom in/out/reset. `draw()` substitueix la transformació de "mapa sencer" per
+  `state.camera` (centre en caselles + zoom 1–3): arrossegar, roda del ratolí,
+  WASD/fletxes i botons. El zoom manté fixat el punt sota el cursor i la càmera
+  es limita al mapa amb un marge d'una casella.
+- **Unity:** `GameManager.IsLocalSpectator()` fa el mateix càlcul i ignora
+  l'input de joc; en P2P a més posa l'input local a neutre perquè l'última
+  direcció premuda no continuï emesa a cada tick. `BoardRenderer.SetSpectator()`
+  substitueix el seguiment del jugador per un objectiu lliure controlat amb el
+  nou Input System (tecles, arrossegar amb ratolí, roda i gestos tàctils de
+  drag/pinch; R/Home restableixen zoom i centre). `UIManager` amaga el pad
+  tàctil, mostra el rètol i el missatge CA/EN (conservat també a `Refresh()`), i
+  restaura `SetFollowTarget` quan es torna a jugar.
+
+### Verificació
+
+- `npm test`: **18/18**. Nova prova: un troublemaker humà posat a terra segueix al
+  snapshot com a humà connectat i el seu intent s'ignora.
+- Roslyn d'Unity 6: **0 errors**. `node --check public/app.js`: net.
+- Prova de navegador amb un *launcher* temporal (1 vida per al nen humà, 50 per a
+  l'altre, `coinGoal=500`, port 3110): en ser agafat, l'HUD mostra «Spectator /
+  You're out — spectating / FREE CAMERA», el banner és visible, els controls tàctils
+  tenen `display:none` i el canvas porta la classe `spectating`. Els botons +/−, la
+  roda i la fletxa dreta van canviar la transformació de la càmera i **Reset view**
+  la va restaurar. Després de l'eliminació no es va enviar cap `POST /input` més
+  (6 sol·licituds abans, 0 després) i la consola va quedar neta. Cap ajust de prova
+  es va desar al projecte.

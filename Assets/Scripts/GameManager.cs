@@ -160,6 +160,16 @@ namespace CatchTheTroublemaker
         {
             if (Phase != GamePhase.Playing || playerInput == null) return;
 
+            // A grounded troublemaker no longer drives a character. BoardRenderer
+            // handles the free camera input instead. In P2P the local input is also
+            // broadcast every tick, so explicitly neutralise it (otherwise the last
+            // held direction would keep being sent after grounding).
+            if (IsLocalSpectator(State))
+            {
+                if (ui.P2pMode && p2p != null && p2p.IsActive) p2p.SetLocalInput(0, 0, false);
+                return;
+            }
+
             // In P2P mode every peer feeds its own input straight into the local
             // lockstep simulation; no HTTP request is involved.
             if (ui.P2pMode)
@@ -185,6 +195,7 @@ namespace CatchTheTroublemaker
         {
             Phase = phase;
             ui.ShowPhase(phase);
+            board.SetSpectator(false);
             if (phase != GamePhase.Playing) board.SetFollowTarget(null);
             if (phase != GamePhase.Result)
             {
@@ -223,6 +234,7 @@ namespace CatchTheTroublemaker
                 RoomCode = p2p.RoomCode;
                 PlayerId = p2p.PlayerId;
                 SetPhase(GamePhase.Playing);
+                board.SetSpectator(false);
                 board.SetFollowTarget(PlayerId);
                 nextInputAt = 0f;
                 return;
@@ -230,6 +242,7 @@ namespace CatchTheTroublemaker
 
             network.SetRoom(RoomCode, PlayerId);
             SetPhase(GamePhase.Playing);
+            board.SetSpectator(false);
             board.SetFollowTarget(PlayerId);
             nextInputAt = 0f;
             network.RefreshState();
@@ -442,8 +455,11 @@ namespace CatchTheTroublemaker
             if (snapshot.status == "playing")
             {
                 if (Phase != GamePhase.Playing) EnterGame();
+                bool spectating = IsLocalSpectator(snapshot);
+                board.SetSpectator(spectating);
+                if (!spectating) board.SetFollowTarget(PlayerId);
                 board.ApplyState(snapshot);
-                ui.UpdateHud(snapshot, PlayerId);
+                ui.UpdateHud(snapshot, PlayerId, spectating);
             }
             else if (snapshot.status == "finished" && snapshot.result != null)
             {
@@ -453,6 +469,19 @@ namespace CatchTheTroublemaker
             {
                 ui.RenderLobby(Lobby, PlayerId);
             }
+        }
+
+        /// <summary>
+        /// A troublemaker who used all three lives keeps their seat in every snapshot,
+        /// but switches to a free spectator camera. Missing players get the same view.
+        /// </summary>
+        private bool IsLocalSpectator(CTTState snapshot)
+        {
+            if (snapshot == null || string.IsNullOrEmpty(PlayerId)) return false;
+            CTTPlayer me = null;
+            foreach (CTTPlayer p in snapshot.players ?? System.Array.Empty<CTTPlayer>())
+                if (p.id == PlayerId) { me = p; break; }
+            return me == null || (me.team == "troublemakers" && me.eliminated);
         }
 
         /// <summary>

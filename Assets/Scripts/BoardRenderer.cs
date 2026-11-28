@@ -1,12 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace CatchTheTroublemaker
 {
     /// <summary>
     /// Draws the authoritative snapshot as a normal world-space 2D scene: one
     /// SpriteRenderer for the map, one per coin and one per player. The orthographic
-    /// camera follows the local player. No rules are evaluated here.
+    /// camera follows the local player, unless that player is a grounded troublemaker:
+    /// then it becomes a free pan/zoom camera. No rules are evaluated here.
     /// </summary>
     public class BoardRenderer : MonoBehaviour
     {
@@ -33,6 +35,19 @@ namespace CatchTheTroublemaker
         private string followId;
         private string[] familyIds = System.Array.Empty<string>();
         private bool familiesDirty;
+
+        // Spectator free camera. Started at the map centre and controlled by
+        // WASD/arrows, mouse drag + wheel, and touch drag + pinch.
+        private const float MinZoom = 1f;
+        private const float MaxZoom = 3f;
+        private bool spectator;
+        private float freeZoom = 1f;
+        private Vector3 freeCameraTarget;
+        private bool mouseDragging;
+        private Vector2 lastMouse;
+        private bool touchDragging;
+        private Vector2 lastTouch;
+        private float lastPinchDistance;
 
         private sealed class PlayerView
         {
@@ -74,6 +89,22 @@ namespace CatchTheTroublemaker
 
         public void SetFollowTarget(string playerId) => followId = playerId;
 
+        /// <summary>
+        /// A grounded human troublemaker keeps their seat in the snapshot but stops
+        /// controlling a character. Switch to a free camera; the caller restores the
+        /// follow target when the spectator plays again.
+        /// </summary>
+        public void SetSpectator(bool enabled)
+        {
+            if (spectator == enabled) return;
+            spectator = enabled;
+            mouseDragging = touchDragging = false;
+            lastPinchDistance = 0f;
+            freeZoom = MinZoom;
+            freeCameraTarget = TileToWorld(cols * 0.5f, rows * 0.5f);
+            if (enabled) followId = null;
+        }
+
         public void Clear()
         {
             mapKey = "";
@@ -83,6 +114,10 @@ namespace CatchTheTroublemaker
             players.Clear();
             foreach (var coin in coinViews) if (coin != null) coin.gameObject.SetActive(false);
             followId = null;
+            spectator = false;
+            freeZoom = MinZoom;
+            mouseDragging = touchDragging = false;
+            lastPinchDistance = 0f;
             Camera main = Camera.main;
             if (main != null) main.transform.position = new Vector3(0f, 0f, -10f);
         }
@@ -106,6 +141,7 @@ namespace CatchTheTroublemaker
                     cols = map.cols;
                     rows = map.rows;
                     currentTiles = map.tiles;
+                    if (spectator) freeCameraTarget = TileToWorld(cols * 0.5f, rows * 0.5f);
                     RebuildMap();
                 }
             }
@@ -261,19 +297,115 @@ namespace CatchTheTroublemaker
         private Vector3 TileToWorld(float x, float y) =>
             new Vector3(x - (cols - 1) * 0.5f, (rows - 1) * 0.5f - y, 0f);
 
+        /// <summary>Free-look controls, only active while spectating.</summary>
+        private void Update()
+        {
+            if (!spectator) return;
+            float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                Vector2 pan = Vector2.zero;
+                if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) pan.x -= 1f;
+                if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) pan.x += 1f;
+                if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) pan.y += 1f;
+                if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) pan.y -= 1f;
+                if (pan.sqrMagnitude > 0f)
+                    freeCameraTarget += new Vector3(pan.x, pan.y, 0f).normalized * (9f * dt / freeZoom);
+
+                if (keyboard.equalsKey.isPressed || keyboard.numpadPlusKey.isPressed) freeZoom += dt;
+                if (keyboard.minusKey.isPressed || keyboard.numpadMinusKey.isPressed) freeZoom -= dt;
+                if (keyboard.rKey.wasPressedThisFrame || keyboard.homeKey.wasPressedThisFrame)
+                {
+                    freeZoom = MinZoom;
+                    freeCameraTarget = TileToWorld(cols * 0.5f, rows * 0.5f);
+                }
+                freeZoom = Mathf.Clamp(freeZoom, MinZoom, MaxZoom);
+            }
+
+            Mouse mouse = Mouse.current;
+            if (mouse != null)
+            {
+                float scroll = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(scroll) > 0.01f)
+                    freeZoom = Mathf.Clamp(freeZoom + scroll * 0.0015f, MinZoom, MaxZoom);
+
+                Vector2 position = mouse.position.ReadValue();
+                if (mouse.leftButton.isPressed)
+                {
+                    if (!mouseDragging) { mouseDragging = true; lastMouse = position; }
+                    else { ApplyDrag(position - lastMouse); lastMouse = position; }
+                }
+                else mouseDragging = false;
+            }
+
+            Touchscreen touch = Touchscreen.current;
+            if (touch != null)
+            {
+                Vector2 first = default;
+                Vector2 second = default;
+                int count = 0;
+                foreach (var control in touch.touches)
+                {
+                    if (!control.press.isPressed) continue;
+                    if (count == 0) first = control.position.ReadValue();
+                    else if (count == 1) second = control.position.ReadValue();
+                    count++;
+                    if (count >= 2) break;
+                }
+
+                if (count >= 2)
+                {
+                    float distance = Vector2.Distance(first, second);
+                    if (lastPinchDistance > 0f)
+                        freeZoom = Mathf.Clamp(
+                            freeZoom * (distance / Mathf.Max(1f, lastPinchDistance)), MinZoom, MaxZoom);
+                    lastPinchDistance = distance;
+                    touchDragging = false;
+                }
+                else
+                {
+                    lastPinchDistance = 0f;
+                    if (count == 1)
+                    {
+                        if (!touchDragging) { touchDragging = true; lastTouch = first; }
+                        else { ApplyDrag(first - lastTouch); lastTouch = first; }
+                    }
+                    else touchDragging = false;
+                }
+            }
+        }
+
+        private void ApplyDrag(Vector2 deltaPixels)
+        {
+            Camera main = Camera.main;
+            if (main == null || deltaPixels.sqrMagnitude < 0.01f) return;
+            float unitsPerPixel = (2f * main.orthographicSize) / Mathf.Max(1f, Screen.height);
+            freeCameraTarget -= new Vector3(deltaPixels.x * unitsPerPixel, deltaPixels.y * unitsPerPixel, 0f);
+        }
+
         private void LateUpdate()
         {
             Camera main = Camera.main;
             if (main == null) return;
 
             main.orthographic = true;
-            main.orthographicSize = cameraSize;
+            main.orthographicSize = spectator ? cameraSize / freeZoom : cameraSize;
 
-            Vector3 target = Vector3.zero;
-            if (!string.IsNullOrEmpty(followId) && players.TryGetValue(followId, out PlayerView view)
-                && view.root != null)
+            Vector3 target;
+            if (spectator)
             {
-                target = view.root.transform.position;
+                target = freeCameraTarget;
+            }
+            else
+            {
+                target = Vector3.zero;
+                if (!string.IsNullOrEmpty(followId) && players.TryGetValue(followId, out PlayerView view)
+                    && view.root != null)
+                {
+                    target = view.root.transform.position;
+                }
             }
 
             float halfH = main.orthographicSize;

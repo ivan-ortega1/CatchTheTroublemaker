@@ -28,6 +28,9 @@ const I18N = {
     sprinting: 'SPRINTING!', ready: 'Ready',
     moveHint: 'move', sprintHint: 'sprint', touchHint: 'Touch controls below on mobile',
     sprintShort: 'SPRINT', canvasAria: 'Game map showing both families, coins and obstacles',
+    spectatorOut: "You're out — spectating",
+    spectatorHint: 'Drag to pan · scroll or +/− to zoom · WASD/arrows pan too',
+    spectatorHintShort: 'FREE CAMERA', zoomIn: 'Zoom in', zoomOut: 'Zoom out', resetView: 'Reset view',
     gameOver: 'Game over', playAgain: 'Play again', backHome: 'Back home',
     parentsWin: 'The parents win!', kidsWin: 'gets away with it!',
     reasonGoal: 'Fifty coins, straight into the pockets.',
@@ -66,6 +69,9 @@ const I18N = {
     sprinting: 'ESPRINTANT!', ready: 'A punt',
     moveHint: 'moure’s', sprintHint: 'esprintar', touchHint: 'Controls tàctils a sota al mòbil',
     sprintShort: 'ESPRINT', canvasAria: 'Mapa de la partida amb les dues famílies, monedes i obstacles',
+    spectatorOut: 'Ets fora — espectador',
+    spectatorHint: 'Arrossega per desplaçar · roda o +/− per ampliar · WASD/fletxes també',
+    spectatorHintShort: 'CÀMERA LLIURE', zoomIn: 'Amplia', zoomOut: 'Allunya', resetView: 'Restableix la vista',
     gameOver: 'Fi de la partida', playAgain: 'Jugar de nou', backHome: 'Tornar a l’inici',
     parentsWin: 'Els pares guanyen!', kidsWin: 'se’n surt!',
     reasonGoal: 'Cinquanta monedes directes a les butxaques.',
@@ -150,12 +156,26 @@ const state = {
   dialogueAudio: null,
   dialogueUrl: null,
   lastDialogueResultKey: null,
+  // Spectator free camera: centre tile coordinates plus zoom (1 = whole map).
+  spectator: false,
+  camera: { x: 0, y: 0, zoom: 1 },
+  view: { scale: 1, ox: 0, oy: 0 },
+  drag: null,
+  lastFrameAt: 0,
 };
 
 const t = (key) => I18N[state.lang][key] ?? I18N.en[key] ?? key;
 const roleMeta = (role) => state.roles[role] || FALLBACK_ROLES[role] || FALLBACK_ROLES.fatherA;
 const roleName = (role) => roleMeta(role).name?.[state.lang] || role;
 const teamName = (team) => TEAM_NAMES[team]?.[state.lang] || team;
+
+// A grounded troublemaker keeps their seat in every snapshot (so presence and
+// the result still work) but switches to the free spectator camera locally.
+function isSpectating(snap) {
+  if (!snap || !state.playerId) return false;
+  const me = snap.players?.find((p) => p.id === state.playerId);
+  return !me || (me.team === 'troublemakers' && !!me.eliminated);
+}
 
 // The A roles wear family 1's portraits and the B roles wear family 2's,
 // matching the internal A/B slots used by the engine. Defaults keep the home
@@ -560,6 +580,7 @@ function bindInput() {
 
   setInterval(() => {
     if (state.screen !== 'game' || !state.snapshot || !state.code || !state.playerId) return;
+    if (isSpectating(state.snapshot)) return; // spectators no longer drive a character
     const intent = currentIntent();
     const sig = `${intent.dx}|${intent.dy}|${intent.sprint}`;
     if (sig !== state.lastInputSig || Date.now() - state.lastInputAt > 1200) {
@@ -575,11 +596,100 @@ function bindInput() {
 const canvas = $('game-canvas');
 const ctx = canvas.getContext('2d');
 
+/* ---------------- Spectator free camera ---------------- */
+// Only grounded human troublemakers get this. The map is still drawn from the
+// same snapshots; only the view transform changes.
+
+function baseScale() {
+  return state.map ? Math.min(canvas.width / state.map.cols, canvas.height / state.map.rows) : 1;
+}
+
+function clampSpectatorCamera() {
+  const cam = state.camera;
+  cam.zoom = Math.max(1, Math.min(3, cam.zoom));
+  if (!state.map) return;
+  const scale = baseScale() * cam.zoom;
+  const halfW = canvas.width / (2 * scale);
+  const halfH = canvas.height / (2 * scale);
+  // One tile of overscroll keeps the map edge in view without losing the camera.
+  const minX = Math.min(state.map.cols / 2, halfW - 1);
+  const maxX = Math.max(state.map.cols / 2, state.map.cols - halfW + 1);
+  const minY = Math.min(state.map.rows / 2, halfH - 1);
+  const maxY = Math.max(state.map.rows / 2, state.map.rows - halfH + 1);
+  cam.x = Math.max(minX, Math.min(maxX, cam.x));
+  cam.y = Math.max(minY, Math.min(maxY, cam.y));
+}
+
+function resetSpectatorCamera() {
+  state.camera.x = state.map ? state.map.cols / 2 : 0;
+  state.camera.y = state.map ? state.map.rows / 2 : 0;
+  state.camera.zoom = 1;
+  clampSpectatorCamera();
+}
+
+function zoomSpectatorCamera(factor, clientX, clientY) {
+  if (!state.spectator || !state.map) return;
+  const view = state.view;
+  const rect = canvas.getBoundingClientRect();
+  const px = clientX == null ? canvas.width / 2 : ((clientX - rect.left) / rect.width) * canvas.width;
+  const py = clientY == null ? canvas.height / 2 : ((clientY - rect.top) / rect.height) * canvas.height;
+  const mapX = (px - view.ox) / view.scale;
+  const mapY = (py - view.oy) / view.scale;
+  const zoom = Math.max(1, Math.min(3, state.camera.zoom * factor));
+  if (zoom === state.camera.zoom) return;
+  state.camera.zoom = zoom;
+  const scale = baseScale() * zoom;
+  // Keep the tile under the cursor pinned to the same screen position.
+  state.camera.x = mapX - (px - canvas.width / 2) / scale;
+  state.camera.y = mapY - (py - canvas.height / 2) / scale;
+  clampSpectatorCamera();
+}
+
+function endSpectatorDrag() {
+  if (!state.drag) return;
+  state.drag = null;
+  canvas.classList.remove('dragging');
+}
+
+function bindSpectatorCamera() {
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!state.spectator) return;
+    if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+    state.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    canvas.classList.add('dragging');
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!state.spectator || !state.drag || state.drag.id !== e.pointerId) return;
+    const rect = canvas.getBoundingClientRect();
+    const dx = ((e.clientX - state.drag.x) / rect.width) * canvas.width;
+    const dy = ((e.clientY - state.drag.y) / rect.height) * canvas.height;
+    state.camera.x -= dx / state.view.scale;
+    state.camera.y -= dy / state.view.scale;
+    state.drag.x = e.clientX;
+    state.drag.y = e.clientY;
+    clampSpectatorCamera();
+  });
+  canvas.addEventListener('pointerup', endSpectatorDrag);
+  canvas.addEventListener('pointercancel', endSpectatorDrag);
+  canvas.addEventListener('pointerleave', endSpectatorDrag);
+  canvas.addEventListener('wheel', (e) => {
+    if (!state.spectator) return;
+    e.preventDefault();
+    zoomSpectatorCamera(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+  }, { passive: false });
+  $('btn-zoom-in').addEventListener('click', () => zoomSpectatorCamera(1.25));
+  $('btn-zoom-out').addEventListener('click', () => zoomSpectatorCamera(1 / 1.25));
+  $('btn-reset-view').addEventListener('click', resetSpectatorCamera);
+}
+
 function enterGame() {
   showScreen('game');
   state.renderPositions = new Map();
   state.particles = [];
   state.lastInputSig = '';
+  state.spectator = false;
+  endSpectatorDrag();
+  resetSpectatorCamera();
   if (state.snapshot) updateHUD(state.snapshot);
 }
 
@@ -679,9 +789,32 @@ function draw(now) {
   const { cols, rows, tiles } = state.map;
   const W = canvas.width;
   const H = canvas.height;
-  const scale = Math.min(W / cols, H / rows);
-  const ox = (W - cols * scale) / 2;
-  const oy = (H - rows * scale) / 2;
+  const dt = state.lastFrameAt ? Math.min(0.05, (now - state.lastFrameAt) / 1000) : 0;
+  state.lastFrameAt = now;
+
+  if (state.spectator) {
+    const k = state.keys;
+    let px = 0; let py = 0;
+    if (k.has('a') || k.has('arrowleft')) px -= 1;
+    if (k.has('d') || k.has('arrowright')) px += 1;
+    if (k.has('w') || k.has('arrowup')) py -= 1;
+    if (k.has('s') || k.has('arrowdown')) py += 1;
+    if (px || py) {
+      const len = Math.hypot(px, py);
+      const viewScale = baseScale() * state.camera.zoom;
+      const step = (420 * dt) / viewScale;
+      state.camera.x += (px / len) * step;
+      state.camera.y += (py / len) * step;
+      clampSpectatorCamera();
+    }
+  }
+
+  const scale = state.spectator ? baseScale() * state.camera.zoom : baseScale();
+  const centerX = state.spectator ? state.camera.x : cols / 2;
+  const centerY = state.spectator ? state.camera.y : rows / 2;
+  const ox = W / 2 - centerX * scale;
+  const oy = H / 2 - centerY * scale;
+  state.view = { scale, ox, oy };
 
   ctx.clearRect(0, 0, W, H);
   const bg = ctx.createLinearGradient(0, 0, W, H);
@@ -814,15 +947,32 @@ function draw(now) {
 
 function updateHUD(snap) {
   const me = snap.players.find((p) => p.id === state.playerId);
-  if (!me) {
-    $('hud-role').textContent = t('spectator');
-    $('hud-lives').textContent = '';
-    return;
+  const spectating = isSpectating(snap);
+  if (spectating !== state.spectator) {
+    // Entering or leaving spectator mode: drop any held movement input and
+    // start the free camera from the centre of the map.
+    state.keys.clear();
+    state.touch = {};
+    state.lastInputSig = '';
+    endSpectatorDrag();
+    if (spectating) resetSpectatorCamera();
   }
-  const meta = roleMeta(me.role);
-  $('hud-role').innerHTML = `${roleIcon(me.role, 'hud-role-icon')}<span>${esc(roleName(me.role))}</span>`;
-  $('hud-role').style.background = meta.color;
-  $('hud-role').style.color = '#10132a';
+  state.spectator = spectating;
+  $('screen-game').classList.toggle('spectator', spectating);
+  $('spectator-banner').hidden = !spectating;
+  canvas.classList.toggle('spectating', spectating);
+
+  if (spectating || !me) {
+    $('hud-role').textContent = t('spectator');
+    $('hud-role').style.background = 'rgba(255,255,255,0.14)';
+    $('hud-role').style.color = '#ffffff';
+    $('hud-lives').textContent = spectating ? t('spectatorOut') : '';
+  } else {
+    const meta = roleMeta(me.role);
+    $('hud-role').innerHTML = `${roleIcon(me.role, 'hud-role-icon')}<span>${esc(roleName(me.role))}</span>`;
+    $('hud-role').style.background = meta.color;
+    $('hud-role').style.color = '#10132a';
+  }
 
   for (const [id, role] of [['dot-a', 'fatherA'], ['dot-b', 'fatherB']]) {
     const dot = $(id);
@@ -830,11 +980,13 @@ function updateHUD(snap) {
     dot.innerHTML = `<img src="${esc(roleSprite(role))}" alt="" />`;
   }
 
-  const child = snap.players.find((p) => p.team === 'troublemakers' && p.family === me.family);
-  if (me.team === 'troublemakers') {
-    $('hud-lives').textContent = `${me.coins}/${snap.goal} ${t('statCoinsShort')} · ${me.lives} ${t('statLives')}`;
-  } else if (child) {
-    $('hud-lives').textContent = `${roleName(child.role)}: ${child.coins}/${snap.goal} ${t('statCoinsShort')} · ${child.lives} ${t('statLives')}`;
+  if (!spectating && me) {
+    const child = snap.players.find((p) => p.team === 'troublemakers' && p.family === me.family);
+    if (me.team === 'troublemakers') {
+      $('hud-lives').textContent = `${me.coins}/${snap.goal} ${t('statCoinsShort')} · ${me.lives} ${t('statLives')}`;
+    } else if (child) {
+      $('hud-lives').textContent = `${roleName(child.role)}: ${child.coins}/${snap.goal} ${t('statCoinsShort')} · ${child.lives} ${t('statLives')}`;
+    }
   }
 
   const mins = Math.floor(snap.remainingMs / 60000);
@@ -848,9 +1000,14 @@ function updateHUD(snap) {
   $('bar-a').style.width = `${Math.min(100, ((ta?.coins || 0) / snap.goal) * 100)}%`;
   $('bar-b').style.width = `${Math.min(100, ((tb?.coins || 0) / snap.goal) * 100)}%`;
 
-  const cooldown = state.config.sprint?.cooldownMs || 6500;
-  $('sprint-fill').style.width = `${Math.max(0, 100 - (me.sprintIn / cooldown) * 100)}%`;
-  $('sprint-label').textContent = me.sprinting ? t('sprinting') : (me.sprintIn > 0 ? `${t('sprint')} ${(me.sprintIn / 1000).toFixed(1)}s` : t('ready'));
+  if (spectating) {
+    $('sprint-fill').style.width = '0%';
+    $('sprint-label').textContent = t('spectatorHintShort');
+  } else if (me) {
+    const cooldown = state.config.sprint?.cooldownMs || 6500;
+    $('sprint-fill').style.width = `${Math.max(0, 100 - (me.sprintIn / cooldown) * 100)}%`;
+    $('sprint-label').textContent = me.sprinting ? t('sprinting') : (me.sprintIn > 0 ? `${t('sprint')} ${(me.sprintIn / 1000).toFixed(1)}s` : t('ready'));
+  }
 }
 
 function showResult(result) {
@@ -991,6 +1148,7 @@ async function bootstrap() {
   setFont(fontLevel);
 
   bindInput();
+  bindSpectatorCamera();
   requestAnimationFrame(draw);
   await resumeRoom();
 }

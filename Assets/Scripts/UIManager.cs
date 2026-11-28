@@ -31,6 +31,9 @@ namespace CatchTheTroublemaker
         /// <summary>In P2P mode: one real player plus bots instead of a code-based room.</summary>
         public bool P2pSolo { get; private set; }
 
+        /// <summary>True while the local player is a grounded troublemaker spectator.</summary>
+        public bool Spectating { get; private set; }
+
         public int TouchX { get; private set; }
         public int TouchY { get; private set; }
         public bool TouchSprint { get; private set; }
@@ -82,6 +85,8 @@ namespace CatchTheTroublemaker
         private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
         private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, familyCaption, familyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
+        private Text spectatorHint;
+        private RectTransform touchPad, sprintButtonRect;
         private Image resultSpeakerIcon;
         private Text resultSpeakerLabel;
         private Text modeLabel, serverCaptionLabel, createLabel, p2pKindLabel;
@@ -409,6 +414,10 @@ namespace CatchTheTroublemaker
             CttUi.LabelAt(hudPanel, "Hint", CTTConfig.Tr("moveHint", ca), 21, CttUi.Muted,
                 new Vector2(0.5f, 0f), new Vector2(1400, 40), new Vector2(0, 36));
 
+            spectatorHint = CttUi.LabelAt(hudPanel, "SpectatorHint", "", 22, CttUi.Accent,
+                new Vector2(0.5f, 0f), new Vector2(1300, 50), new Vector2(0, 210));
+            spectatorHint.gameObject.SetActive(false);
+
             BuildCharacterStrip();
             BuildTouchPad();
         }
@@ -438,6 +447,7 @@ namespace CatchTheTroublemaker
         private void BuildTouchPad()
         {
             var pad = CttUi.Rect("TouchPad", hudPanel);
+            touchPad = pad;
             CttUi.Place(pad, new Vector2(0f, 0f), new Vector2(420, 420), new Vector2(210, 210));
 
             HoldAt(pad, "Up", new Vector2(0, 1), new Vector2(-140, 0), -1, 0);
@@ -446,6 +456,7 @@ namespace CatchTheTroublemaker
             HoldAt(pad, "Right", new Vector2(1, 0), new Vector2(0, -140), 0, 1);
 
             RectTransform sprint = CttUi.Rect("SprintButton", hudPanel);
+            sprintButtonRect = sprint;
             CttUi.Place(sprint, new Vector2(1f, 0f), new Vector2(260, 120), new Vector2(-180, 150));
             sprint.gameObject.AddComponent<Image>().color = CttUi.Accent2;
             var hold = sprint.gameObject.AddComponent<CttHoldButton>();
@@ -543,6 +554,10 @@ namespace CatchTheTroublemaker
             {
                 TouchX = TouchY = 0;
                 TouchSprint = false;
+                Spectating = false;
+                if (spectatorHint != null) spectatorHint.gameObject.SetActive(false);
+                if (touchPad != null) touchPad.gameObject.SetActive(true);
+                if (sprintButtonRect != null) sprintButtonRect.gameObject.SetActive(true);
             }
             Toast("");
         }
@@ -644,11 +659,20 @@ namespace CatchTheTroublemaker
             }
         }
 
-        public void UpdateHud(CTTState snapshot, string playerId)
+        public void UpdateHud(CTTState snapshot, string playerId, bool spectating = false)
         {
 
             if (snapshot == null) return;
             EnsureBuilt();
+            Spectating = spectating;
+            if (touchPad != null) touchPad.gameObject.SetActive(!spectating);
+            if (sprintButtonRect != null) sprintButtonRect.gameObject.SetActive(!spectating);
+            if (spectatorHint != null)
+            {
+                spectatorHint.gameObject.SetActive(spectating);
+                if (spectating) spectatorHint.text = CTTConfig.Tr("spectatorHint", game != null && game.Catalan);
+            }
+            if (spectating) { TouchX = TouchY = 0; TouchSprint = false; }
             bool ca = game != null && game.Catalan;
             RememberFamilies(snapshot.lobby);
             string[] families = snapshot.lobby != null && snapshot.lobby.families != null
@@ -672,12 +696,12 @@ namespace CatchTheTroublemaker
             foreach (CTTPlayer p in snapshot.players ?? Array.Empty<CTTPlayer>())
                 if (p.id == playerId) { me = p; break; }
 
-            if (me == null)
+            if (me == null || spectating)
             {
                 hudRole.text = CTTConfig.Tr("spectator", ca);
                 CttUi.SetSprite(hudRoleIcon, null, CttUi.Muted);
-                hudLives.text = "";
-                hudSprint.text = "";
+                hudLives.text = spectating ? CTTConfig.Tr("spectatorOut", ca) : "";
+                hudSprint.text = spectating ? CTTConfig.Tr("spectatorHintShort", ca) : "";
                 return;
             }
 
@@ -772,7 +796,7 @@ namespace CatchTheTroublemaker
             if (familyCaption != null) familyCaption.text = CTTConfig.Tr("chooseFamilies", catalan);
             if (familyHint != null) familyHint.text = CTTConfig.Tr("familyHint", catalan);
             if (lobby != null) RenderLobby(lobby, playerId);
-            if (state != null && current == GamePhase.Playing) UpdateHud(state, playerId);
+            if (state != null && current == GamePhase.Playing) UpdateHud(state, playerId, Spectating);
             if (result != null && current == GamePhase.Result) ShowResult(result);
         }
 

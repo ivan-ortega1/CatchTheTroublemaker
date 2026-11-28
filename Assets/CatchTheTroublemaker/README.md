@@ -65,7 +65,7 @@ Catch the Troublemaker -> http://localhost:3000
 | `GameManager.cs` | **Central scene controller**: session state machine (Home → Lobby → Playing → Result), commands, preferences |
 | `NetworkManager.cs` | REST commands, SSE stream, `/state` polling fallback; raises typed events |
 | `UIManager.cs` | uGUI overlay: home, waiting room, HUD, touch pad, result screen |
-| `BoardRenderer.cs` | World-space 2D map, coins and player sprites; orthographic camera follow |
+| `BoardRenderer.cs` | World-space 2D map, coins and player sprites; camera follow or free spectator camera |
 | `PlayerController.cs` | Input System keyboard and touch intent (never moves the player locally) |
 | `CTTApi.cs` | Async `UnityWebRequest` GET/POST wrapper |
 | `CTTSseClient.cs` | Server-Sent Events reader with a `DownloadHandlerScript` parser and main-thread event queue |
@@ -89,7 +89,10 @@ The runtime scripts now live in `Assets/Scripts/`; this folder keeps the client 
   `/state` poll as a fallback. Input intent is POSTed every 100 ms.
 - **World-space 2D:** the map is one sprite generated with `Texture2D.SetPixels32`
   (16 px per tile); coins and players are `SpriteRenderer` objects, and the camera
-  follows the local player with smoothing and map-bounds clamping.
+  follows the local player with smoothing and map-bounds clamping. A human troublemaker
+  who loses all lives keeps their seat but switches to a free spectator camera
+  (WASD/arrows, drag/pinch, wheel/zoom keys, `R`/`Home` to reset), with the HUD touch
+  pad hidden and a CA/EN spectator banner.
 - **Characters are selected-family sprites:** `fatherA`/`motherA`/`troublemakerA` come
   from family A and the B roles from family B. The menu legend, lobby cards, HUD strip,
   score tags and world `SpriteRenderer` objects all use the same art. The local player

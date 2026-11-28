@@ -99,6 +99,33 @@ test('only the parents of the same family can catch their child', () => {
   assert.ok(match.respawns.length >= 7, 'dropped coins are scheduled to respawn');
 });
 
+test('a grounded human stays in snapshots so clients can switch to spectating', () => {
+  const match = new Match({
+    id: 'T9', seed: 9, humans: [human('kid', 'troublemakerA'), human('dad', 'fatherA')], now: NOW,
+  });
+  match.coins = [];
+  const child = match.getPlayer('kid');
+  const dad = match.getPlayer('dad');
+  child.graceUntil = 0;
+  child.lives = 1;
+  child.coins = 4;
+  dad.x = child.x; dad.y = child.y;
+  match.tick(NOW, 0.05);
+
+  assert.equal(child.eliminated, true);
+  const shown = match.getSnapshot(NOW + 50, false).players.find((p) => p.id === 'kid');
+  assert.equal(shown.eliminated, true, 'the eliminated flag drives spectator mode');
+  assert.equal(shown.connected, true, 'grounding a kid must not disconnect the human');
+  assert.equal(shown.isBot, false, 'a grounded human seat is never taken by a bot');
+  assert.equal(shown.lives, 0);
+  assert.equal(shown.coins, 0);
+
+  const before = { x: child.x, y: child.y };
+  match.setInput('kid', { dx: 1, dy: 0, sprint: true }, NOW + 100);
+  match.tick(NOW + 150, 0.05);
+  assert.deepEqual({ x: child.x, y: child.y }, before, 'spectator input never moves the grounded actor');
+});
+
 test('reaching the coin goal wins for the troublemakers', () => {
   const match = new Match({ id: 'T5', seed: 4, humans: [], now: NOW });
   const child = match.getPlayer('bot-troublemakerB-T5');
