@@ -71,8 +71,8 @@ Catch the Troublemaker -> http://localhost:3000
 | `CTTSseClient.cs` | Server-Sent Events reader with a `DownloadHandlerScript` parser and main-thread event queue |
 | `CTTData.cs` | Serializable DTOs matching the server JSON |
 | `CTTConfig.cs` | Role metadata, colours and CA/EN strings |
-| `CTTDraw.cs` | Procedural textures: map, coins and the square character marker |
-| `CTTUI.cs` | uGUI factory: panels, labels, buttons, fields and coloured square icons |
+| `CTTDraw.cs` | Procedural textures: map, coins and the square character fallback marker |
+| `CTTUI.cs` | uGUI factory: panels, labels, buttons, fields and sprite/colour fallback icons |
 | `CTTHoldButton.cs` | Held-button behaviour for the touch D-pad and sprint |
 | `P2PConfig.cs` / `P2PEngine.cs` | Deterministic C# port of the rules engine (solo bots and multiplayer lockstep) |
 | `P2PTransport.cs` | UDP LAN discovery + direct TCP mesh for multiplayer rooms |
@@ -90,12 +90,13 @@ The runtime scripts now live in `Assets/Scripts/`; this folder keeps the client 
 - **World-space 2D:** the map is one sprite generated with `Texture2D.SetPixels32`
   (16 px per tile); coins and players are `SpriteRenderer` objects, and the camera
   follows the local player with smoothing and map-bounds clamping.
-- **Characters are coloured squares:** every character is a flat coloured square, both
-  in the world and in the UI. The menu has a six-square legend, the lobby shows one
-  large square per role card, and the game HUD has a six-square character strip. The
-  local player gets a thin white frame; high-contrast mode changes the palette.
-- **Procedural art:** no external image assets — map, coins and markers are generated
-  with `Texture2D.SetPixels32`. CA/EN toggle included.
+- **Characters are selected-family sprites:** `fatherA`/`motherA`/`troublemakerA` come
+  from family A and the B roles from family B. The menu legend, lobby cards, HUD strip,
+  score tags and world `SpriteRenderer` objects all use the same art. The local player
+  gets a thin white frame; the flat role-coloured square remains the fallback.
+- **Procedural art:** the map and coins are generated with `Texture2D.SetPixels32`;
+  character PNGs are copied from `Assets/Sprites/Characters/Troublemakers/` into
+  `Assets/Resources/CTTCharacters/` so runtime builds can load them. CA/EN toggle included.
 - **Reconnect:** room code and player ID are kept in `PlayerPrefs`; reloading the
   scene rejoins an in-progress match.
 

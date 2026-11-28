@@ -62,6 +62,67 @@ namespace CatchTheTroublemaker
             }
         }
 
+        /// <summary>Sprite filename (without extension) used by a role id.</summary>
+        public static string SpriteNameForRole(string role)
+        {
+            switch (role)
+            {
+                case "fatherA": case "fatherB": return "Father";
+                case "motherA": case "motherB": return "Mother";
+                case "troublemakerA": case "troublemakerB": return "Troublemaker";
+                default: return null;
+            }
+        }
+
+        /// <summary>0 for the A slot, 1 for the B slot. Unknown roles use A.</summary>
+        public static int SlotOfRole(string role) =>
+            role != null && role.EndsWith("B", System.StringComparison.Ordinal) ? 1 : 0;
+
+        /// <summary>
+        /// The two selected family ids, padded with the catalog defaults. This lets
+        /// the home screen and a fresh lobby show real art before a host picks a pair.
+        /// </summary>
+        public static string[] EffectiveFamilies(string[] selected)
+        {
+            string[] defaults = Current.DefaultIds(2);
+            var result = new string[2];
+            for (int slot = 0; slot < 2; slot++)
+            {
+                string id = selected != null && selected.Length > slot ? selected[slot] : null;
+                result[slot] = string.IsNullOrEmpty(id)
+                    ? (slot < defaults.Length ? defaults[slot] : FallbackIds[slot])
+                    : id;
+            }
+            return result;
+        }
+
+        public static string FamilyIdForRole(string[] selected, string role) =>
+            EffectiveFamilies(selected)[SlotOfRole(role)];
+
+        /// <summary>
+        /// Character sprite for a role id: father/mother/troublemaker from family A
+        /// for the A roles, and from family B for the B roles. Falls back to the
+        /// serialized catalog entry if a Resources copy is missing.
+        /// </summary>
+        public static Sprite SpriteForRole(string[] selected, string role)
+        {
+            string spriteName = SpriteNameForRole(role);
+            if (string.IsNullOrEmpty(spriteName)) return null;
+
+            string familyId = FamilyIdForRole(selected, role);
+            Sprite sprite = SpriteFor(familyId, spriteName);
+            if (sprite != null) return sprite;
+
+            CTTCharacterFamily family = Current.Find(familyId);
+            if (family == null) return null;
+            switch (spriteName)
+            {
+                case "Father": return family.father;
+                case "Mother": return family.mother;
+                default: return family.troublemaker;
+            }
+        }
+
         /// <summary>Player-facing family names. Folder ids stay stable for the
         /// network protocol; only these labels are renamed.</summary>
         public static string DisplayNameFor(string id)

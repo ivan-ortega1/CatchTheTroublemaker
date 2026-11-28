@@ -91,8 +91,12 @@ namespace CatchTheTroublemaker
         private readonly List<Text> familySlotLabels = new List<Text>();
         private readonly Image[] rosterIcons = new Image[6];
         private readonly Text[] rosterLabels = new Text[6];
+        private readonly Image[] homeRoleIcons = new Image[6];
+        private readonly Image[] roleCardIcons = new Image[6];
+        private readonly Image[] scoreIcons = new Image[2];
         private Image hudRoleIcon;
         private Button startButton;
+        private string[] lastFamilies = Array.Empty<string>();
 
         private void Awake() => EnsureBuilt();
 
@@ -200,17 +204,19 @@ namespace CatchTheTroublemaker
             CttUi.Label(At(card, "Title", 1000, 84, 46), "Text", CTTConfig.Tr("title", ca), 58, CttUi.Accent);
             CttUi.Label(At(card, "Tagline", 1000, 54, 114), "Text", CTTConfig.Tr("tagline", ca), 28, CttUi.Muted);
 
-            // The six characters are introduced as simple coloured squares.
+            // The six characters use the art of the selected families (defaults
+            // before a room chooses a pair).
             RectTransform legend = At(card, "CharacterLegend", 1000, 80, 182);
             for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
             {
                 string role = CTTConfig.RoleOrder[i];
                 float x = (i - 2.5f) * 156f;
-                CttUi.Icon(legend, "Icon_" + role,
-                    CTTConfig.ColorOf(role, game != null && game.HighContrast), new Vector2(52, 52),
-                    new Vector2(0.5f, 0.5f), new Vector2(x, 10));
+                homeRoleIcons[i] = CttUi.SpriteImage(legend, "Icon_" + role,
+                    CTTCharacterCatalog.SpriteForRole(lastFamilies, role),
+                    new Vector2(52, 62), new Vector2(0.5f, 0.5f), new Vector2(x, 14),
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast));
                 CttUi.LabelAt(legend, "Code_" + role, CTTConfig.ShortOf(role), 21, CttUi.Muted,
-                    new Vector2(0.5f, 0.5f), new Vector2(110, 26), new Vector2(x, -26));
+                    new Vector2(0.5f, 0.5f), new Vector2(110, 26), new Vector2(x, -30));
             }
 
             CttUi.Label(At(card, "NameCaption", 900, 36, 250), "Text", CTTConfig.Tr("name", ca), 24,
@@ -278,7 +284,7 @@ namespace CatchTheTroublemaker
             CttUi.Label(At(card, "RolesCaption", 1000, 40, 470), "Text",
                 CTTConfig.Tr("chooseRole", ca), 22, CttUi.Muted);
 
-            // Each role is a card with one big coloured square as the character.
+            // Each role card shows the actual character art of its family.
             for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
             {
                 string role = CTTConfig.RoleOrder[i];
@@ -289,9 +295,10 @@ namespace CatchTheTroublemaker
                     new Vector2(0.5f, 1f), new Vector2(340, 100), new Vector2(x, -y), 20);
                 roleButtons[i] = button;
 
-                CttUi.Icon(button.transform, "Character",
-                    CTTConfig.ColorOf(role, game != null && game.HighContrast), new Vector2(62, 62),
-                    new Vector2(0f, 0.5f), new Vector2(52, 6));
+                roleCardIcons[i] = CttUi.SpriteImage(button.transform, "Character",
+                    CTTCharacterCatalog.SpriteForRole(lastFamilies, role),
+                    new Vector2(58, 74), new Vector2(0f, 0.5f), new Vector2(52, 6),
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast));
                 CttUi.InsetCaption(button, 92f);
             }
 
@@ -370,9 +377,9 @@ namespace CatchTheTroublemaker
 
             bool ca = game != null && game.Catalan;
 
-            // Left: the local character is shown as its coloured square.
-            hudRoleIcon = CttUi.Icon(top, "RoleIcon", Color.white, new Vector2(56, 56),
-                new Vector2(0f, 0.5f), new Vector2(70, 0));
+            // Left: the local character is shown with its family sprite.
+            hudRoleIcon = CttUi.SpriteImage(top, "RoleIcon", null, new Vector2(52, 66),
+                new Vector2(0f, 0.5f), new Vector2(70, 0), CttUi.Muted);
             hudRole = CttUi.LabelAt(top, "Role", "", 28, CttUi.Accent,
                 new Vector2(0f, 0.5f), new Vector2(440, 90), new Vector2(350, 0), TextAnchor.MiddleLeft);
             hudLives = CttUi.LabelAt(top, "Lives", "", 26, Color.white,
@@ -382,13 +389,15 @@ namespace CatchTheTroublemaker
             hudTimer = CttUi.LabelAt(top, "Timer", "", 40, Color.white,
                 new Vector2(0.5f, 0.5f), new Vector2(180, 90), new Vector2(-60, 0));
 
-            // Right: family scores, each tagged with its troublemaker's colour square.
-            CttUi.Icon(top, "ScoreAIcon", CTTConfig.ColorOf("fatherA"), new Vector2(36, 36),
-                new Vector2(1f, 0.5f), new Vector2(-670, 0));
+            // Right: family scores, each tagged with its family father sprite.
+            scoreIcons[0] = CttUi.SpriteImage(top, "ScoreAIcon",
+                CTTCharacterCatalog.SpriteForRole(lastFamilies, "fatherA"), new Vector2(30, 42),
+                new Vector2(1f, 0.5f), new Vector2(-670, 0), CTTConfig.ColorOf("fatherA"));
             hudScoreA = CttUi.LabelAt(top, "ScoreA", "", 25, CttUi.Accent2,
                 new Vector2(1f, 0.5f), new Vector2(300, 90), new Vector2(-490, 0), TextAnchor.MiddleLeft);
-            CttUi.Icon(top, "ScoreBIcon", CTTConfig.ColorOf("fatherB"), new Vector2(36, 36),
-                new Vector2(1f, 0.5f), new Vector2(-310, 0));
+            scoreIcons[1] = CttUi.SpriteImage(top, "ScoreBIcon",
+                CTTCharacterCatalog.SpriteForRole(lastFamilies, "fatherB"), new Vector2(30, 42),
+                new Vector2(1f, 0.5f), new Vector2(-310, 0), CTTConfig.ColorOf("fatherB"));
             hudScoreB = CttUi.LabelAt(top, "ScoreB", "", 25, CttUi.Accent,
                 new Vector2(1f, 0.5f), new Vector2(260, 90), new Vector2(-130, 0), TextAnchor.MiddleLeft);
 
@@ -402,7 +411,7 @@ namespace CatchTheTroublemaker
             BuildTouchPad();
         }
 
-        /// <summary>A row of six coloured squares showing every character at a glance.</summary>
+        /// <summary>A row of six character sprites showing every seat at a glance.</summary>
         private void BuildCharacterStrip()
         {
             RectTransform strip = CttUi.Rect("CharacterStrip", hudPanel);
@@ -415,11 +424,12 @@ namespace CatchTheTroublemaker
             {
                 string role = CTTConfig.RoleOrder[i];
                 float x = (i - 2.5f) * 122f;
-                rosterIcons[i] = CttUi.Icon(strip, "Icon_" + role,
-                    CTTConfig.ColorOf(role, game != null && game.HighContrast),
-                    new Vector2(48, 48), new Vector2(0.5f, 0.5f), new Vector2(x, 12));
+                rosterIcons[i] = CttUi.SpriteImage(strip, "Icon_" + role,
+                    CTTCharacterCatalog.SpriteForRole(lastFamilies, role),
+                    new Vector2(42, 58), new Vector2(0.5f, 0.5f), new Vector2(x, 14),
+                    CTTConfig.ColorOf(role, game != null && game.HighContrast));
                 rosterLabels[i] = CttUi.LabelAt(strip, "Code_" + role, CTTConfig.ShortOf(role), 20,
-                    CttUi.Muted, new Vector2(0.5f, 0.5f), new Vector2(100, 26), new Vector2(x, -28));
+                    CttUi.Muted, new Vector2(0.5f, 0.5f), new Vector2(100, 26), new Vector2(x, -32));
             }
         }
 
@@ -481,6 +491,35 @@ namespace CatchTheTroublemaker
         }
 
         /* ----------------------------- presentation ----------------------------- */
+
+        /// <summary>Remembers the pair picked by the host so later screens keep the art.</summary>
+        private void RememberFamilies(CTTLobby lobby)
+        {
+            if (lobby == null || lobby.families == null || lobby.families.Length == 0) return;
+            lastFamilies = (string[])lobby.families.Clone();
+        }
+
+        /// <summary>
+        /// Refreshes every fixed character icon (home legend, lobby cards and score
+        /// tags). Live player icons are refreshed from the snapshot in UpdateHud().
+        /// </summary>
+        private void ApplyCharacterSprites(string[] families)
+        {
+            bool contrast = game != null && game.HighContrast;
+            for (int i = 0; i < CTTConfig.RoleOrder.Length; i++)
+            {
+                string role = CTTConfig.RoleOrder[i];
+                Color fallback = CTTConfig.ColorOf(role, contrast);
+                CttUi.SetSprite(homeRoleIcons[i],
+                    CTTCharacterCatalog.SpriteForRole(families, role), fallback);
+                CttUi.SetSprite(roleCardIcons[i],
+                    CTTCharacterCatalog.SpriteForRole(families, role), fallback);
+            }
+            CttUi.SetSprite(scoreIcons[0],
+                CTTCharacterCatalog.SpriteForRole(families, "fatherA"), CTTConfig.ColorOf("fatherA", contrast));
+            CttUi.SetSprite(scoreIcons[1],
+                CTTCharacterCatalog.SpriteForRole(families, "fatherB"), CTTConfig.ColorOf("fatherB", contrast));
+        }
 
         public void ShowPhase(GamePhase target)
         {
@@ -550,6 +589,8 @@ namespace CatchTheTroublemaker
             // player has explicitly picked a character and two families are set.
             if (startButton != null)
                 startButton.interactable = (solo || isHost) && enough && rolesChosen && familiesChosen;
+            RememberFamilies(lobby);
+            ApplyCharacterSprites(chosenFamilies);
             RenderFamilyCards(chosenFamilies, solo || isHost);
 
             var taken = new System.Collections.Generic.Dictionary<string, string>();
@@ -599,6 +640,10 @@ namespace CatchTheTroublemaker
             if (snapshot == null) return;
             EnsureBuilt();
             bool ca = game != null && game.Catalan;
+            RememberFamilies(snapshot.lobby);
+            string[] families = snapshot.lobby != null && snapshot.lobby.families != null
+                ? snapshot.lobby.families : lastFamilies;
+            ApplyCharacterSprites(families);
 
             int seconds = Mathf.Max(0, Mathf.CeilToInt(snapshot.remainingMs / 1000f));
             hudTimer.text = (seconds / 60) + ":" + (seconds % 60).ToString("00");
@@ -611,7 +656,7 @@ namespace CatchTheTroublemaker
             }
             hudScoreA.text = (ca ? "Família A  " : "Family A  ") + a + "/" + snapshot.goal;
             hudScoreB.text = (ca ? "Família B  " : "Family B  ") + b + "/" + snapshot.goal;
-            UpdateRoster(snapshot, playerId);
+            UpdateRoster(snapshot, playerId, families);
 
             CTTPlayer me = null;
             foreach (CTTPlayer p in snapshot.players ?? Array.Empty<CTTPlayer>())
@@ -620,13 +665,15 @@ namespace CatchTheTroublemaker
             if (me == null)
             {
                 hudRole.text = CTTConfig.Tr("spectator", ca);
-                hudRoleIcon.color = CttUi.Muted;
+                CttUi.SetSprite(hudRoleIcon, null, CttUi.Muted);
                 hudLives.text = "";
                 hudSprint.text = "";
                 return;
             }
 
-            hudRoleIcon.color = CTTConfig.ColorOf(me.role, game != null && game.HighContrast);
+            CttUi.SetSprite(hudRoleIcon,
+                CTTCharacterCatalog.SpriteForRole(families, me.role),
+                CTTConfig.ColorOf(me.role, game != null && game.HighContrast));
             hudRole.text = (ca ? "ETS  " : "YOU ARE  ") + CTTConfig.RoleName(me.role, ca);
             bool kids = me.team == "troublemakers";
             hudLives.text = kids
@@ -637,8 +684,8 @@ namespace CatchTheTroublemaker
                 : CTTConfig.Tr("ready", ca);
         }
 
-        /// <summary>Keeps the six coloured character squares in sync with the snapshot.</summary>
-        private void UpdateRoster(CTTState snapshot, string playerId)
+        /// <summary>Keeps the six character sprites in sync with the snapshot.</summary>
+        private void UpdateRoster(CTTState snapshot, string playerId, string[] families)
         {
             bool contrast = game != null && game.HighContrast;
             foreach (CTTPlayer p in snapshot.players ?? Array.Empty<CTTPlayer>())
@@ -646,9 +693,10 @@ namespace CatchTheTroublemaker
                 int index = Array.FindIndex(CTTConfig.RoleOrder, r => r == p.role);
                 if (index < 0 || index >= rosterIcons.Length || rosterIcons[index] == null) continue;
 
-                Color color = CTTConfig.ColorOf(p.role, contrast);
-                if (p.eliminated) color = Color.Lerp(color, Color.black, 0.55f);
-                rosterIcons[index].color = color;
+                Color fallback = CTTConfig.ColorOf(p.role, contrast);
+                CttUi.SetSprite(rosterIcons[index],
+                    CTTCharacterCatalog.SpriteForRole(families, p.role),
+                    fallback, p.eliminated ? 0.45f : 1f);
                 rosterIcons[index].transform.localScale = p.id == playerId
                     ? Vector3.one * 1.18f : Vector3.one;
                 rosterLabels[index].color = p.id == playerId ? CttUi.Accent : CttUi.Muted;
@@ -702,6 +750,7 @@ namespace CatchTheTroublemaker
             nameField.text = playerName;
             phase = current;
             ShowPhase(current);
+            ApplyCharacterSprites(lastFamilies);
             if (familyCaption != null) familyCaption.text = CTTConfig.Tr("chooseFamilies", catalan);
             if (familyHint != null) familyHint.text = CTTConfig.Tr("familyHint", catalan);
             if (lobby != null) RenderLobby(lobby, playerId);

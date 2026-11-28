@@ -251,7 +251,7 @@ namespace CatchTheTroublemaker
             {
                 RoomCode = response.code;
                 PlayerId = response.playerId;
-                Lobby = response.lobby;
+                ApplyLobby(response.lobby);
                 SaveSession();
                 network.SetRoom(RoomCode, PlayerId);
                 SetPhase(GamePhase.Lobby);
@@ -290,7 +290,7 @@ namespace CatchTheTroublemaker
             {
                 RoomCode = response.code;
                 PlayerId = response.playerId;
-                Lobby = response.lobby;
+                ApplyLobby(response.lobby);
                 SaveSession();
                 network.SetRoom(RoomCode, PlayerId);
                 if (Lobby != null && Lobby.status == "playing") EnterGame();
@@ -333,7 +333,7 @@ namespace CatchTheTroublemaker
             network.SetFamilies(RoomCode, PlayerId, NextFamilies(id, Lobby.families),
                 response =>
                 {
-                    Lobby = response.lobby;
+                    ApplyLobby(response.lobby);
                     ui.RenderLobby(Lobby, PlayerId);
                 }, Fail);
         }
@@ -403,15 +403,22 @@ namespace CatchTheTroublemaker
 
         /* ----------------------------- network callbacks ----------------------------- */
 
-        private void OnLobbyReceived(CTTLobby lobby)
+        /// <summary>Keeps the world art in sync with the family pair picked in the lobby.</summary>
+        private void ApplyLobby(CTTLobby lobby)
         {
             Lobby = lobby;
+            if (board != null && lobby != null) board.SetFamilies(lobby.families);
+        }
+
+        private void OnLobbyReceived(CTTLobby lobby)
+        {
+            ApplyLobby(lobby);
             if (Phase == GamePhase.Lobby) ui.RenderLobby(lobby, PlayerId);
         }
 
         private void OnP2pLobby(CTTLobby lobby)
         {
-            Lobby = lobby;
+            ApplyLobby(lobby);
             if (Phase == GamePhase.Lobby)
                 ui.RenderLobby(lobby, p2p == null ? PlayerId : p2p.PlayerId);
         }
@@ -420,7 +427,7 @@ namespace CatchTheTroublemaker
         {
             if (snapshot == null) return;
             State = snapshot;
-            if (snapshot.lobby != null) Lobby = snapshot.lobby;
+            if (snapshot.lobby != null) ApplyLobby(snapshot.lobby);
 
             if (snapshot.events != null)
                 foreach (CTTEvent evt in snapshot.events)

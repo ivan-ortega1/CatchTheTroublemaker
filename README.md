@@ -31,8 +31,14 @@ Requires Node.js ≥ 18 (tested on Node 24). Optional: `PORT=4000 node server/in
 3. The home screen has a **Server URL** field (default `http://localhost:3000`) and a **TEST** button. `localhost` only works when the server runs on that same device; use the host's LAN IP (e.g. `http://192.168.1.20:3000`) on the same Wi-Fi. On **mobile data or another network**, publish port 3000 through a tunnel/cloud host and use that public URL instead — a LAN IP cannot be reached from mobile data.
 4. Other machines on the same network find the server automatically (UDP LAN discovery) — the Home screen also has a **FIND LAN** button. Create a room or join with the 5-letter code, pick a role, and let the host start. The server prints the shareable LAN URL when it starts. See [docs/NETWORKING.md](docs/NETWORKING.md) for same-Wi-Fi, mobile-data and public tunnel setup.
 
-The map, world characters and coins are generated procedurally; the only imported
-artwork is the four family portrait sets used on the lobby selector (below). In the Unity client every in-game character is a **coloured icon square**: the menu shows a six-square legend, the lobby uses one large square per role card, and the game HUD has a six-square character strip (the local player gets a white frame). In the world, characters keep those exact role colours and coins are bright **yellow circles**. The browser client keeps the ■ ▲ ★ shape coding.
+The map and coins are generated procedurally; the imported artwork is the four family
+portrait sets. Once the host picks two families, every character icon uses those
+sprites: the `fatherA`/`motherA`/`troublemakerA` roles wear family A's father, mother
+and troublemaker PNGs, and the `fatherB`/`motherB`/`troublemakerB` roles wear family B's.
+This applies to the Unity menu legend, lobby role cards, HUD strip, score tags and
+world actors (the local player still gets a thin white frame), and to the browser
+lobby, HUD and canvas. Coins remain bright **yellow circles**; role colours stay as
+the fallback when a PNG is unavailable and for accessibility cues.
 
 **Family selector (all modes, both clients).** Before starting, the room creator/master
 — or the Solo player — clicks **two different families** from `Assets/Sprites/Characters/Troublemakers`.
@@ -135,7 +141,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
                                       • pure module → unit-testable
 ```
 
-- **Unity client structure:** `GameManager` owns the Home → Lobby → Playing → Result state machine. `NetworkManager` handles REST/SSE/polling, `UIManager` the uGUI overlay, `BoardRenderer` the **world-space 2D** sprites and follow camera, and `PlayerController` the Input System intent. Menu, lobby and game screens all use the same flat coloured-square character language; only intent is sent, positions never are.
+- **Unity client structure:** `GameManager` owns the Home → Lobby → Playing → Result state machine. `NetworkManager` handles REST/SSE/polling, `UIManager` the uGUI overlay, `BoardRenderer` the **world-space 2D** sprites and follow camera, and `PlayerController` the Input System intent. Menu, lobby and game screens all use the selected family portraits; only intent is sent, positions never are.
 - **Client → server:** small `POST /api/rooms/:code/input` messages carrying only `{dx, dy, sprint}`.
 - **Server → client:** Server-Sent Events stream `hello`, `lobby`, `start`, `state` and `result`. Browsers use `EventSource`; Unity parses the same stream with a custom `DownloadHandlerScript`. Both also poll `/state` as a fallback.
 - **Authority:** neither client decides coins, catches or the winner. Both only draw snapshots.
@@ -215,7 +221,7 @@ A browser smoke test was also performed: a room was created, a role chosen, the 
 | Shared goal | 50 coins, 132 on the map with respawn |
 | Asynchronous communication | Server-Sent Events + input POSTs, polling fallback |
 | Endpoint returning the winner | `GET /api/rooms/:code/result` |
-| Aesthetics / usability / accessibility | Procedural uGUI + canvas UI, CA/EN, keyboard + touch, ARIA live toasts (browser), high contrast, text sizing (browser), coloured-square characters (Unity) + shape coding (browser), reduced motion (browser) |
+| Aesthetics / usability / accessibility | Procedural uGUI + canvas UI, CA/EN, keyboard + touch, ARIA live toasts (browser), high contrast, text sizing (browser), selected-family character sprites in both clients (colour/shape fallbacks), reduced motion (browser) |
 | Developed with AI agents and documented | This repository + `docs/AI_PROCESS.md` + `docs/PRESENTATION.md` |
 | Git | Repository initialised; commits at each milestone |
 

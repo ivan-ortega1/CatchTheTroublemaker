@@ -154,18 +154,29 @@ namespace CatchTheTroublemaker
             return image;
         }
 
-        /// <summary>Character sprite used on the family selection cards.</summary>
+        /// <summary>
+        /// Sprite-backed image. When the sprite is missing, <paramref name="fallback"/>
+        /// draws the legacy flat square instead of leaving an empty card.
+        /// </summary>
         public static Image SpriteImage(Transform parent, string name, Sprite sprite,
-            Vector2 size, Vector2 anchor, Vector2 position)
+            Vector2 size, Vector2 anchor, Vector2 position, Color? fallback = null)
         {
             var rt = Rect(name, parent);
             Place(rt, anchor, size, position);
             var image = rt.gameObject.AddComponent<Image>();
-            image.sprite = sprite;
-            image.color = Color.white;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
+            SetSprite(image, sprite, fallback ?? Color.clear);
             return image;
+        }
+
+        /// <summary>Swaps a character image while keeping the colour fallback in sync.</summary>
+        public static void SetSprite(Image image, Sprite sprite, Color fallback, float brightness = 1f)
+        {
+            if (image == null) return;
+            image.sprite = sprite;
+            image.preserveAspect = sprite != null;
+            Color color = sprite != null ? Color.white : fallback;
+            image.color = new Color(color.r * brightness, color.g * brightness,
+                color.b * brightness, color.a);
         }
 
         /// <summary>Coloured square with a light frame, used to mark the local player.</summary>

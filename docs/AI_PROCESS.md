@@ -150,6 +150,7 @@ als pares si cap nen arriba a la meta.
 | 21 | L'usuari va afegir tres SFX i els volia en hover/click de qualsevol botó i en recollida de moneda. | El client Unity no tenia cap gestor d'SFX ni llegia els esdeveniments `coin` dels snapshots. | `CttSfx` (creat per `GameManager`) reprodueix els clips amb `PlayOneShot`; `CttUi.Button` afegeix `EventTrigger.PointerEnter` i un listener a `onClick`; `CTTState.events` s'ha afegit al DTO i `GameManager.OnStateReceived` reprodueix el so només per a `type == "coin"`. El mode P2P converteix `DrainEvents()` al mateix DTO. |
 | 22 | L'usuari va avisar que els fitxers d'hover i press estaven intercanviats de nom. | El codi apuntava `hoverClip` a `SFX_ButtonHover.wav`, però aquell fitxer conté el so de clic. | S'han intercanviat les referències a `CTTSceneSetup.cs` i `SampleScene.unity`: `hoverClip` → `SFX_ButtonPress.wav` i `pressClip` → `SFX_ButtonHover.wav`, mantenint els noms semàntics dels camps. |
 | 23 | L'usuari va demanar sentir només les monedes que recull ell, tant en Solo com en Multi P2P. | `OnStateReceived` reproduïa `PlayCoin()` per a qualsevol esdeveniment `coin` del snapshot, inclosos els dels bots i els altres jugadors. | Nou filtre `IsMyCoinEvent(evt)` que compara `evt.id` amb `PlayerId` (`local-solo` a Solo, `transport.PeerId` a Multi i l'id del servidor a Online). Així el so sona només per a la recollida pròpia. |
+| 24 | L'usuari va demanar substituir els quadrats dels personatges pels sprites de les famílies triades. | La fase anterior mostrava les imatges reals només a les targetes del selector; el menú, el lobby, el HUD i el món encara pintaven quadrats de color. | `CTTCharacterCatalog.SpriteForRole()` resol `fatherA`/`motherA`/`troublemakerA` des de `families[0]` i els de B des de `families[1]`, amb valors per defecte abans d'haver triat. `UIManager`, `BoardRenderer` i el client navegador comparteixen aquesta correspondència; el quadrat de color només queda com a *fallback*. |
 
 ### Què va funcionar a la primera
 
@@ -360,7 +361,7 @@ Abans de codificar es van aclarir tres decisions amb l'usuari:
 | Pregunta | Resposta triada |
 | --- | --- |
 | On ha d'estar el selector? | En **tots els modes** (servidor, P2P Multi i P2P Solo) i en **Unity + navegador**. |
-| On es mostren els sprites? | Només al **selector i al lobby**; al món i al HUD es conserven els quadrats de color exactes. |
+| On es mostren els sprites? | Inicialment només al **selector i al lobby**; al món i al HUD es conservaven els quadrats de color. **Decisió substituïda després** per la petició següent: ara les icones de personatge de totes les pantalles i del món fan servir els sprites de les famílies triades (veure §14). |
 | Com es deselecciona? | Clicar una targeta triada la treu; una tercera no pot substituir-ne cap fins que se n'elimini una. |
 
 ### Implementació
@@ -412,3 +413,60 @@ no es toquen perquè són les claus del protocol i de la validació.
   sense dues famílies i l'acceptació final.
 - `git status` revisat abans de desar; els `.csproj` generats per Unity es deixen sense
   *commit*, com en les iteracions anteriors.
+
+---
+
+## 14. Cinquena fase: icones de personatge amb les famílies triades
+
+L'usuari va demanar:
+
+> "Can you change the square icons for the characters to sprites of the selected
+> families (father, mother and troublemaker of Family A / Family B)?"
+
+Això **substitueix** la decisió de la fase anterior que reservava les imatges reals
+només per al selector i el lobby. Els rols interns, els colors i la regla de captura
+per família no es toquen: només canvia la presentació.
+
+### Correspondència
+
+| Rol | Família | Sprite |
+| --- | --- | --- |
+| `fatherA`, `motherA`, `troublemakerA` | `lobby.families[0]` | `Father.png`, `Mother.png`, `Troublemaker.png` |
+| `fatherB`, `motherB`, `troublemakerB` | `lobby.families[1]` | els mateixos noms dins de la carpeta B |
+
+Abans que l'amfitrió triï dues famílies s'usen les dues primeres del catàleg, així
+la pantalla d'inici i una sala nova mai no mostren icones buides. Si algun PNG falta,
+es conserva el quadrat del color del rol (comportament *fallback* de les fases prèvies).
+
+### Implementació
+
+- `CTTCharacterCatalog.cs`: noves funcions `SpriteNameForRole`, `SlotOfRole`,
+  `EffectiveFamilies`, `FamilyIdForRole` i `SpriteForRole`. Llegeixen primer la còpia
+  de `Resources` i, si no hi és, cauen al camp serialitzat del catàleg.
+- `UIManager.cs`: la llegenda de la Home, les targetes de rol del lobby, el strip del
+  HUD, el rètol del jugador local i les dues etiquetes de puntuació ara són `Image`
+  amb sprite. `RenderLobby()` i `UpdateHud()` refresquen les imatges quan canvia la
+  selecció; els jugadors eliminats es mostren atenuats i el local segueix escalat.
+- `BoardRenderer.cs`: els `SpriteRenderer` del món substitueixen el quadrat procedural
+  pel PNG. Com que els PNG són alts, s'escalonen a una alçada aproximada d'una
+  casella; el marc blanc del jugador local és ara el contorn blanc del mateix sprite.
+- `GameManager.cs`: `ApplyLobby()` passa `lobby.families` al `BoardRenderer` a cada
+  resposta HTTP, missatge P2P o snapshot, de manera que Solo, Multi i Online comparteixen
+  la mateixa font de dades.
+- `public/app.js`, `public/index.html`, `public/styles.css`: el client del navegador
+  fa servir la mateixa correspondència a les targetes de rol, la llista de jugadors,
+  el HUD i els actors del canvas. El codi de rol (`FA`, `TA`, …) es conserva com a
+  pista d'accessibilitat sobre la imatge; mentre el PNG carrega, el canvas dibuixa
+  la forma antiga.
+
+**Decisió clau:** les dades de família continuen sent només metadades de presentació.
+El motor JS i el port C# segueixen treballant amb els slots `A`/`B`, de manera que la
+paritat de 400 ticks i les proves d'equilibri no s'han de repetir.
+
+### Verificació
+
+- Roslyn d'Unity 6: **0 errors** (`Assets/Scripts` + `Assets/Editor`; només els avisos
+  preexistents de `FindFirstObjectByType`).
+- `node --check public/app.js`: sense errors de sintaxi.
+- `npm test`: **16/16**; el servidor i el selector de famílies no s'han modificat.
+- `git status` revisat abans de desar.

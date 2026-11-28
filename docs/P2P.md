@@ -17,7 +17,8 @@ the same game simulation locally and computes the same winner.
 2. Press **PLAY SOLO**. You go straight to the lobby; no room code or network
    connection is needed.
 3. Choose the two families on the family cards (two are preselected, click a selected
-   card to remove it) and the character you want to be (one of the six coloured squares).
+   card to remove it) and the character you want to be (one of six role cards showing
+   the selected families' father/mother/troublemaker portraits).
    Then press **START**. The other five seats are bots controlled by the same local engine.
 4. The Result screen shows the winner computed locally, exactly as in a network match.
 

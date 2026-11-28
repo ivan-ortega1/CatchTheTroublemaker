@@ -31,12 +31,22 @@ namespace CatchTheTroublemaker
         private string mapKey = "";
         private bool highContrast;
         private string followId;
+        private string[] familyIds = System.Array.Empty<string>();
+        private bool familiesDirty;
 
         private sealed class PlayerView
         {
             public GameObject root;
             public SpriteRenderer body;
             public SpriteRenderer outline;
+            public Sprite sprite;
+        }
+
+        /// <summary>Family ids picked in the lobby; A roles use slot 0, B roles slot 1.</summary>
+        public void SetFamilies(string[] families)
+        {
+            familyIds = families != null ? (string[])families.Clone() : System.Array.Empty<string>();
+            familiesDirty = true; // force the next snapshot to re-apply art
         }
 
         private void Awake()
@@ -164,15 +174,25 @@ namespace CatchTheTroublemaker
                     players[p.id] = view;
                 }
 
+                // Repaint before the visibility check: a family changed while a
+                // player was eliminated must still be applied on respawn.
+                Sprite sprite = CTTCharacterCatalog.SpriteForRole(familyIds, p.role);
+                if (familiesDirty || sprite != view.sprite)
+                {
+                    view.sprite = sprite;
+                    ApplyActorSprite(view, sprite, CTTConfig.ColorOf(p.role, highContrast));
+                }
+                else if (sprite == null)
+                {
+                    view.body.color = CTTConfig.ColorOf(p.role, highContrast);
+                }
+
                 view.root.SetActive(!p.eliminated && p.respawnIn <= 0f);
                 if (!view.root.activeSelf) continue;
 
                 view.root.transform.position = TileToWorld(p.x, p.y);
-                // Keep the exact role colour used by the menu squares. State is
-                // still visible through position, the local frame and the HUD.
-                view.body.color = CTTConfig.ColorOf(p.role, highContrast);
 
-                // A thin white frame is the only marker for the local player.
+                // A thin white silhouette frame is the only marker for the local player.
                 view.outline.gameObject.SetActive(p.id == followId);
             }
 
@@ -183,6 +203,7 @@ namespace CatchTheTroublemaker
                 if (players[id].root != null) Destroy(players[id].root);
                 players.Remove(id);
             }
+            familiesDirty = false;
         }
 
         private PlayerView CreatePlayerView(CTTPlayer p)
@@ -193,9 +214,7 @@ namespace CatchTheTroublemaker
 
             var outlineObject = new GameObject("Outline", typeof(SpriteRenderer));
             outlineObject.transform.SetParent(root.transform, false);
-            outlineObject.transform.localScale = Vector3.one * 1.18f;
             var outline = outlineObject.GetComponent<SpriteRenderer>();
-            outline.sprite = CTTDraw.Shape("square");
             outline.sharedMaterial = CTTDraw.SpriteMaterial;
             outline.sortingOrder = 2;
             outline.color = Color.white;
@@ -204,12 +223,37 @@ namespace CatchTheTroublemaker
             var bodyObject = new GameObject("Body", typeof(SpriteRenderer));
             bodyObject.transform.SetParent(root.transform, false);
             var body = bodyObject.GetComponent<SpriteRenderer>();
-            body.sprite = CTTDraw.Shape("square");
             body.sharedMaterial = CTTDraw.SpriteMaterial;
             body.sortingOrder = 3;
-            body.color = CTTConfig.ColorOf(p.role, highContrast);
 
-            return new PlayerView { root = root, body = body, outline = outline };
+            var view = new PlayerView { root = root, body = body, outline = outline };
+            ApplyActorSprite(view, CTTCharacterCatalog.SpriteForRole(familyIds, p.role),
+                CTTConfig.ColorOf(p.role, highContrast));
+            return view;
+        }
+
+        /// <summary>
+        /// Uses the imported portrait sprites in the world. The PNGs are tall, so
+        /// scale them to a roughly one-tile-high actor; the old square remains the
+        /// fallback when a sprite is missing. The white silhouette is the local frame.
+        /// </summary>
+        private static void ApplyActorSprite(PlayerView view, Sprite sprite, Color fallback)
+        {
+            if (view == null || view.body == null || view.outline == null) return;
+
+            Sprite drawn = sprite != null ? sprite : CTTDraw.Shape("square");
+            view.sprite = sprite;
+            view.body.sprite = drawn;
+            view.outline.sprite = drawn;
+            view.body.color = sprite != null ? Color.white : fallback;
+            view.outline.color = Color.white;
+
+            float height = sprite != null ? sprite.bounds.size.y : 0.48f;
+            float scale = sprite != null
+                ? Mathf.Clamp(1.3f / Mathf.Max(0.01f, height * 1.5f), 0.05f, 4f)
+                : 1f;
+            view.body.transform.localScale = Vector3.one * scale;
+            view.outline.transform.localScale = Vector3.one * scale * 1.12f;
         }
 
         /* ----------------------------- camera ----------------------------- */

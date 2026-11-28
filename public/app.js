@@ -140,7 +140,53 @@ const t = (key) => I18N[state.lang][key] ?? I18N.en[key] ?? key;
 const roleMeta = (role) => state.roles[role] || FALLBACK_ROLES[role] || FALLBACK_ROLES.fatherA;
 const roleName = (role) => roleMeta(role).name?.[state.lang] || role;
 const teamName = (team) => TEAM_NAMES[team]?.[state.lang] || team;
-const glyphFor = (shape) => ({ square: '■', triangle: '▲', star: '★' }[shape] || '●');
+
+// The A roles wear family 1's portraits and the B roles wear family 2's,
+// matching the internal A/B slots used by the engine. Defaults keep the home
+// screen populated before a host picks the pair.
+const SPRITE_PART = {
+  fatherA: 'father', motherA: 'mother', troublemakerA: 'troublemaker',
+  fatherB: 'father', motherB: 'mother', troublemakerB: 'troublemaker',
+};
+function spriteFamilyForRole(role) {
+  const ids = state.lobby?.families?.length
+    ? state.lobby.families
+    : FALLBACK_FAMILIES.slice(0, 2).map((f) => f.id);
+  const slot = String(role).endsWith('B') ? 1 : 0;
+  const id = ids[slot] || ids[0];
+  return state.families.find((f) => f.id === id)
+    || FALLBACK_FAMILIES.find((f) => f.id === id)
+    || FALLBACK_FAMILIES[0];
+}
+const roleSprite = (role) => spriteFamilyForRole(role).sprites[SPRITE_PART[role] || 'father'];
+
+function roleIcon(role, className = 'role-glyph') {
+  const meta = roleMeta(role);
+  return `<span class="${esc(className)} role-sprite" style="background:${esc(meta.color)}"
+            title="${esc(roleName(role))}">
+            <img src="${esc(roleSprite(role))}" alt="" />
+            <span class="role-code" aria-hidden="true">${esc(meta.short)}</span>
+          </span>`;
+}
+
+const roleImages = new Map();
+function roleImage(role) {
+  const src = roleSprite(role);
+  if (!roleImages.has(src)) {
+    const img = new Image();
+    img.src = src;
+    roleImages.set(src, img);
+  }
+  return roleImages.get(src);
+}
+
+function paintHeroArt() {
+  const roles = ['fatherA', 'troublemakerA', 'troublemakerB'];
+  document.querySelectorAll('.art-player').forEach((el, i) => {
+    const role = roles[i];
+    if (role) el.innerHTML = `<img src="${esc(roleSprite(role))}" alt="" />`;
+  });
+}
 
 function applyI18n() {
   document.documentElement.lang = state.lang;
@@ -271,7 +317,7 @@ function renderLobby() {
 
   $('player-list').innerHTML = lobby.players.map((p) => `
     <li>
-      <span class="role-glyph" style="background:${esc(roleMeta(p.role).color)}">${esc(glyphFor(roleMeta(p.role).shape))}</span>
+      ${roleIcon(p.role)}
       <span class="who">${esc(p.name)}</span>
       ${p.id === lobby.hostId ? `<span class="host-badge">${state.lang === 'ca' ? 'AMFITRIÓ' : 'HOST'}</span>` : ''}
       <span class="tag">${esc(roleName(p.role))}</span>
@@ -283,7 +329,7 @@ function renderLobby() {
     return `
       <button class="role-btn ${selected ? 'selected' : ''} ${owner && !selected ? 'taken' : ''}"
               data-role="${esc(slot.role)}" aria-pressed="${selected}">
-        <span class="role-glyph" style="background:${esc(slot.color)}">${esc(glyphFor(roleMeta(slot.role).shape))}</span>
+        ${roleIcon(slot.role)}
         <span class="role-meta">
           <strong>${esc(roleName(slot.role))}</strong>
           <small>${esc(teamName(slot.team))} · ${owner ? esc(owner.name) : esc(t('free'))}</small>
@@ -643,16 +689,36 @@ function draw(now) {
     const x = ox + pos.x * scale;
     const y = oy + pos.y * scale;
     const size = scale * 0.34;
+    const mine = p.id === state.playerId;
     ctx.save();
     ctx.globalAlpha = p.grace ? 0.42 + 0.35 * Math.sin(now / 90) : 1;
-    ctx.fillStyle = p.color;
-    ctx.strokeStyle = p.id === state.playerId ? '#ffffff' : 'rgba(8,10,28,0.85)';
-    ctx.lineWidth = p.id === state.playerId ? Math.max(2, scale * 0.1) : Math.max(1, scale * 0.04);
     if (p.sprinting) {
       ctx.shadowColor = p.color;
       ctx.shadowBlur = scale * 0.8;
     }
-    drawShape(ctx, p.shape, x, y, size);
+
+    const img = roleImage(p.role);
+    let box = null;
+    if (img.complete && img.naturalWidth > 0) {
+      // Keep the portrait's aspect ratio; the tall sprites are normalised to
+      // roughly 2.6 shape-sizes high so they do not dwarf the coins.
+      const h = size * 2.6;
+      const w = h * (img.naturalWidth / img.naturalHeight);
+      box = { x: x - w / 2, y: y - h * 0.62, w, h };
+      ctx.drawImage(img, box.x, box.y, w, h);
+      if (mine) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2, scale * 0.08);
+        roundRect(ctx, box.x - 2, box.y - 2, w + 4, h + 4, scale * 0.16);
+        ctx.stroke();
+      }
+    } else {
+      // Shape/colour fallback while the PNG finishes loading.
+      ctx.fillStyle = p.color;
+      ctx.strokeStyle = mine ? '#ffffff' : 'rgba(8,10,28,0.85)';
+      ctx.lineWidth = mine ? Math.max(2, scale * 0.1) : Math.max(1, scale * 0.04);
+      drawShape(ctx, p.shape, x, y, size);
+    }
     ctx.restore();
 
     ctx.font = `800 ${Math.max(9, scale * 0.36)}px system-ui, sans-serif`;
@@ -698,9 +764,15 @@ function updateHUD(snap) {
     return;
   }
   const meta = roleMeta(me.role);
-  $('hud-role').textContent = roleName(me.role);
+  $('hud-role').innerHTML = `${roleIcon(me.role, 'hud-role-icon')}<span>${esc(roleName(me.role))}</span>`;
   $('hud-role').style.background = meta.color;
   $('hud-role').style.color = '#10132a';
+
+  for (const [id, role] of [['dot-a', 'fatherA'], ['dot-b', 'fatherB']]) {
+    const dot = $(id);
+    dot.className = 'dot-sprite';
+    dot.innerHTML = `<img src="${esc(roleSprite(role))}" alt="" />`;
+  }
 
   const child = snap.players.find((p) => p.team === 'troublemakers' && p.family === me.family);
   if (me.team === 'troublemakers') {
@@ -764,6 +836,7 @@ async function bootstrap() {
     state.roles = cfg.roles;
     state.families = cfg.families || [];
   } catch { /* fall back to built-in values */ }
+  paintHeroArt();
 
   $('btn-create').addEventListener('click', createRoom);
   $('btn-join').addEventListener('click', joinRoom);
