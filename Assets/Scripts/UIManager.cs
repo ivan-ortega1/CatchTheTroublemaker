@@ -82,6 +82,8 @@ namespace CatchTheTroublemaker
         private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
         private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, familyCaption, familyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
+        private Image resultSpeakerIcon;
+        private Text resultSpeakerLabel;
         private Text modeLabel, serverCaptionLabel, createLabel, p2pKindLabel;
         private Button modeButton, findButton, testButton, createButton, p2pKindButton, joinButton;
         private InputField nameField, serverField, joinField;
@@ -482,6 +484,14 @@ namespace CatchTheTroublemaker
             resultTitle = CttUi.Label(At(card, "Title", 1000, 90, 130), "Text", "", 56, CttUi.Accent);
             resultReason = CttUi.Label(At(card, "Reason", 1000, 70, 224), "Text", "", 28, CttUi.Muted);
             resultStats = CttUi.Label(At(card, "Stats", 980, 270, 336), "Text", "", 25, Color.white, TextAnchor.UpperCenter);
+
+            // The voice line is attributed to the troublemaker who "said" it.
+            RectTransform speaker = At(card, "ResultSpeaker", 980, 96, 496);
+            resultSpeakerIcon = CttUi.SpriteImage(speaker, "Speaker", null, new Vector2(48, 62),
+                new Vector2(0f, 0.5f), new Vector2(46, 0), CttUi.Muted);
+            resultSpeakerLabel = CttUi.LabelAt(speaker, "SpeakerLabel", "", 24, CttUi.Accent2,
+                new Vector2(0f, 0.5f), new Vector2(850, 90), new Vector2(470, 0), TextAnchor.MiddleLeft);
+
             CttUi.Button(card, "Again", CTTConfig.Tr("playAgain", ca), CttUi.Accent,
                 () => RematchRequested?.Invoke(),
                 new Vector2(0.5f, 1f), new Vector2(700, 74), new Vector2(0, -636), 32);
@@ -713,6 +723,14 @@ namespace CatchTheTroublemaker
             resultTitle.text = result != null && result.winnerTeam == "troublemakers"
                 ? CTTConfig.Tr("kidsWin", ca) : CTTConfig.Tr("parentsWin", ca);
             resultReason.text = result == null ? "" : ReasonText(result.reason, ca);
+
+            string role = CTTDialogue.RoleForResult(result);
+            bool voiceVictory = result != null && result.winnerTeam == "troublemakers";
+            CttUi.SetSprite(resultSpeakerIcon,
+                CTTCharacterCatalog.SpriteForRole(lastFamilies, role), CttUi.Muted);
+            resultSpeakerLabel.text = result == null ? "" :
+                CTTConfig.Tr("resultVoice", ca) + ": " + CTTConfig.RoleName(role, ca) +
+                " · " + CTTConfig.Tr(voiceVictory ? "voiceVictory" : "voiceDefeat", ca);
 
             var sb = new System.Text.StringBuilder();
             if (result == null) { resultStats.text = ""; return; }

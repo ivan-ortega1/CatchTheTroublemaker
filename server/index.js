@@ -27,6 +27,7 @@ const PORT = Number(process.env.PORT) || 3000;
 // The playable families are the folders the user added under Assets. The server
 // only needs their names; the sprites themselves are served straight from disk.
 const CHARACTER_ROOT = path.join(ROOT, 'Assets', 'Sprites', 'Characters', 'Troublemakers');
+const DIALOGUE_ROOT = path.join(ROOT, 'Assets', 'Audio', 'Dialogue');
 const FALLBACK_FAMILIES = ['ClassicCaillou', 'EmilyAnderson', 'JonathanJohnson', 'LittleBill'];
 
 function discoverFamilies() {
@@ -54,6 +55,17 @@ function prettyFamilyName(id) {
   return FAMILY_NAMES[id] || String(id).replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
+function dialoguePath(id, outcome) {
+  const name = outcome === 'victory' ? 'DIA_Troublemakervictory' : 'DIA_Troublemakerdefeat';
+  for (const extension of ['.mp3', '.wav']) {
+    if (fs.existsSync(path.join(DIALOGUE_ROOT, 'Characters', 'Troublemakers', id,
+      'Troublemaker', name + extension))) {
+      return `/dialogue/Characters/Troublemakers/${id}/Troublemaker/${name}${extension}`;
+    }
+  }
+  return `/dialogue/Characters/Troublemakers/${id}/Troublemaker/${name}.mp3`;
+}
+
 function familyConfig() {
   return FAMILIES.map((id) => ({
     id,
@@ -62,6 +74,10 @@ function familyConfig() {
       troublemaker: `/characters/Troublemakers/${id}/Troublemaker.png`,
       father: `/characters/Troublemakers/${id}/Father.png`,
       mother: `/characters/Troublemakers/${id}/Mother.png`,
+    },
+    dialogue: {
+      victory: dialoguePath(id, 'victory'),
+      defeat: dialoguePath(id, 'defeat'),
     },
   }));
 }
@@ -90,6 +106,8 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
 };
 
 function newCode() {
@@ -141,12 +159,17 @@ function readBody(req) {
 
 function serveStatic(res, pathname) {
   const isCharacter = pathname.startsWith('/characters/');
-  const base = isCharacter ? path.join(ROOT, 'Assets', 'Sprites', 'Characters') : PUBLIC_DIR;
+  const isDialogue = pathname.startsWith('/dialogue/');
+  const base = isCharacter
+    ? path.join(ROOT, 'Assets', 'Sprites', 'Characters')
+    : isDialogue ? DIALOGUE_ROOT : PUBLIC_DIR;
   const relative = pathname === '/'
     ? 'index.html'
     : isCharacter
       ? pathname.replace(/^\/+characters\//, '')
-      : pathname.replace(/^\/+/, '');
+      : isDialogue
+        ? pathname.replace(/^\/+dialogue\//, '')
+        : pathname.replace(/^\/+/, '');
   const target = path.resolve(base, relative);
   const rootFile = path.join(PUBLIC_DIR, 'index.html');
   if (!target.startsWith(base + path.sep) && target !== rootFile) {

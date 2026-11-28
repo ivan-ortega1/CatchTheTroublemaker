@@ -33,6 +33,8 @@ const I18N = {
     reasonGoal: 'Fifty coins, straight into the pockets.',
     reasonCaught: 'Both troublemakers were grounded.',
     reasonTimeout: 'Time ran out before the coin goal.',
+    resultVoice: 'Character line', playVoice: 'Play voice line',
+    voiceVictory: 'victory', voiceDefeat: 'defeat',
     statCoins: 'Coins collected', statCatches: 'Catches', statConfiscated: 'Confiscated',
     statTime: 'Duration', statLives: 'lives', statCoinsShort: 'coins',
     plusCoin: '+1 coin', caughtToast: 'Caught! Coins dropped', confiscated: 'Coin confiscated',
@@ -69,6 +71,8 @@ const I18N = {
     reasonGoal: 'Cinquanta monedes directes a les butxaques.',
     reasonCaught: ' els dos entremaliats han estat posats a terra.',
     reasonTimeout: 'El temps s’ha acabat abans de la meta.',
+    resultVoice: 'Missatge del personatge', playVoice: 'Escoltar el missatge',
+    voiceVictory: 'victòria', voiceDefeat: 'derrota',
     statCoins: 'Monedes recollides', statCatches: 'Captures', statConfiscated: 'Confiscades',
     statTime: 'Durada', statLives: 'vides', statCoinsShort: 'monedes',
     plusCoin: '+1 moneda', caughtToast: 'Atrapat! Monedes perdudes', confiscated: 'Moneda confiscada',
@@ -90,6 +94,11 @@ const FAMILY_NAMES = {
   JonathanJohnson: 'The Johnsons',
   LittleBill: 'The Bills',
 };
+const dialogueUrl = (id, outcome) => {
+  const name = outcome === 'victory' ? 'DIA_Troublemakervictory' : 'DIA_Troublemakerdefeat';
+  const extension = id === 'JonathanJohnson' ? 'wav' : 'mp3';
+  return `/dialogue/Characters/Troublemakers/${id}/Troublemaker/${name}.${extension}`;
+};
 const FALLBACK_FAMILIES = ['ClassicCaillou', 'EmilyAnderson', 'JonathanJohnson', 'LittleBill']
   .map((id) => ({
     id,
@@ -98,6 +107,10 @@ const FALLBACK_FAMILIES = ['ClassicCaillou', 'EmilyAnderson', 'JonathanJohnson',
       troublemaker: `/characters/Troublemakers/${id}/Troublemaker.png`,
       father: `/characters/Troublemakers/${id}/Father.png`,
       mother: `/characters/Troublemakers/${id}/Mother.png`,
+    },
+    dialogue: {
+      victory: dialogueUrl(id, 'victory'),
+      defeat: dialogueUrl(id, 'defeat'),
     },
   }));
 const TEAM_NAMES = {
@@ -134,6 +147,9 @@ const state = {
   particles: [],
   seenEvents: new Set(),
   lastResult: null,
+  dialogueAudio: null,
+  dialogueUrl: null,
+  lastDialogueResultKey: null,
 };
 
 const t = (key) => I18N[state.lang][key] ?? I18N.en[key] ?? key;
@@ -188,6 +204,45 @@ function paintHeroArt() {
   });
 }
 
+// ---- Result dialogue -------------------------------------------------------
+// The engine marks the speaker; these helpers only choose the family clip.
+
+function stopDialogue() {
+  if (state.dialogueAudio) {
+    state.dialogueAudio.pause();
+    state.dialogueAudio.currentTime = 0;
+    state.dialogueAudio = null;
+  }
+  state.dialogueUrl = null;
+}
+
+function playDialogue(src) {
+  if (!src) return;
+  stopDialogue();
+  state.dialogueUrl = src;
+  const audio = new Audio(src);
+  state.dialogueAudio = audio;
+  // Autoplay can be blocked; the Result screen keeps a manual play button.
+  audio.play().catch(() => {});
+}
+
+function speakerRoleForResult(result) {
+  if (!result) return 'troublemakerA';
+  if (result.dialogueRole) return result.dialogueRole;
+  const standings = result.standings || [];
+  const id = result.dialogueId || (result.winnerTeam === 'troublemakers' ? result.winnerId : null);
+  const speaker = standings.find((s) => s.id === id);
+  if (speaker) return speaker.role;
+  const grounded = standings.filter((s) => s.team === 'troublemakers' && s.eliminated);
+  return grounded.length ? grounded[grounded.length - 1].role : 'troublemakerA';
+}
+
+function dialogueUrlForResult(result, role) {
+  const family = spriteFamilyForRole(role);
+  const outcome = result.winnerTeam === 'troublemakers' ? 'victory' : 'defeat';
+  return (family.dialogue && family.dialogue[outcome]) || dialogueUrl(family.id, outcome);
+}
+
 function applyI18n() {
   document.documentElement.lang = state.lang;
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
@@ -197,6 +252,7 @@ function applyI18n() {
 }
 
 function showScreen(name) {
+  if (name !== 'result') stopDialogue();
   state.screen = name;
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${name}`));
 }
@@ -822,6 +878,18 @@ function showResult(result) {
     <div class="stat"><strong>${result.stats.catches}</strong><span>${t('statCatches')}</span></div>
     <div class="stat"><strong>${result.stats.coinsCollected}</strong><span>${t('statCoins')}</span></div>
     <div class="stat"><strong>${result.stats.confiscated}</strong><span>${t('statConfiscated')}</span></div>`;
+
+  const role = speakerRoleForResult(result);
+  $('result-dialogue').hidden = false;
+  $('result-dialogue-sprite').src = roleSprite(role);
+  $('result-dialogue-name').textContent = `${t('resultVoice')}: ${roleName(role)} · ` +
+    t(isParents ? 'voiceDefeat' : 'voiceVictory');
+
+  const key = `${result.finishedAt}|${result.winnerTeam}|${result.dialogueId || ''}|${role}`;
+  if (key !== state.lastDialogueResultKey) {
+    state.lastDialogueResultKey = key;
+    playDialogue(dialogueUrlForResult(result, role));
+  }
 }
 
 /* ---------------- Bootstrap ---------------- */
@@ -841,6 +909,10 @@ async function bootstrap() {
   $('btn-create').addEventListener('click', createRoom);
   $('btn-join').addEventListener('click', joinRoom);
   $('join-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
+
+  $('btn-dialogue').addEventListener('click', () => {
+    if (state.dialogueUrl) playDialogue(state.dialogueUrl);
+  });
 
   $('btn-copy').addEventListener('click', async () => {
     if (!state.code) return;

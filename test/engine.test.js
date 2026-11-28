@@ -108,6 +108,8 @@ test('reaching the coin goal wins for the troublemakers', () => {
   assert.equal(match.status, 'finished');
   assert.equal(match.result.winnerTeam, 'troublemakers');
   assert.equal(match.result.winnerId, child.id);
+  assert.equal(match.result.dialogueId, child.id);
+  assert.equal(match.result.dialogueRole, 'troublemakerB');
   assert.equal(match.getResult().finished, true);
 });
 
@@ -125,6 +127,7 @@ test('grounding both troublemakers wins for the parents', () => {
   assert.equal(match.status, 'finished');
   assert.equal(match.result.winnerTeam, 'parents');
   assert.equal(match.result.reason, 'both troublemakers were grounded');
+  assert.equal(match.result.dialogueRole, 'troublemakerB', 'the last grounded kid says the defeat line');
 });
 
 test('time running out wins for the parents', () => {
@@ -134,6 +137,22 @@ test('time running out wins for the parents', () => {
   assert.equal(match.status, 'finished');
   assert.equal(match.result.winnerTeam, 'parents');
   assert.match(match.result.reason, /time ran out/);
+  assert.equal(match.result.dialogueRole, 'troublemakerA', 'no catch yet: use the first kid as a safe fallback');
+});
+
+test('a timeout plays the last grounded troublemaker line', () => {
+  const match = new Match({ id: 'T7b', seed: 7, humans: [], now: NOW });
+  match.coins = [];
+  const child = match.getPlayer('bot-troublemakerA-T7b');
+  const dad = match.getPlayer('bot-fatherA-T7b');
+  child.graceUntil = 0;
+  child.lives = 1;
+  dad.x = child.x; dad.y = child.y;
+  match.tick(NOW, 0.05);
+  match.endsAt = NOW - 1;
+  match.tick(NOW + 50, 0.05);
+  assert.equal(match.result.winnerTeam, 'parents');
+  assert.equal(match.result.dialogueRole, child.role);
 });
 
 test('snapshot exposes everything clients and the result endpoint need', () => {

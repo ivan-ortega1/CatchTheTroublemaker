@@ -224,6 +224,7 @@ export class Match {
     this.events = [];
     this.result = null;
     this.lastCatcherId = null;
+    this.lastCaughtId = null;
     this.stats = { catches: 0, coinsCollected: 0, confiscated: 0 };
   }
 
@@ -415,6 +416,7 @@ export class Match {
     child.lives -= 1;
     this.stats.catches++;
     this.lastCatcherId = parent.id;
+    this.lastCaughtId = child.id;
     const dropped = child.coins;
     child.coins = 0;
     for (let i = 0; i < dropped; i++) this.respawns.push(now + 200 + i * 45);
@@ -456,10 +458,19 @@ export class Match {
   finish(winnerTeam, winnerPlayer, reason, now = Date.now()) {
     if (this.result) return;
     this.status = 'finished';
+    // The result screen plays the winning kid's line on a troublemaker win and
+    // the last grounded kid's line on a parents win (timeout included).
+    const speaker = winnerTeam === 'troublemakers'
+      ? winnerPlayer
+      : this.getPlayer(this.lastCaughtId)
+        || this.players.find((p) => p.team === 'troublemakers' && p.eliminated)
+        || this.players.find((p) => p.team === 'troublemakers');
     this.result = {
       winnerTeam,
       winnerId: winnerPlayer ? winnerPlayer.id : null,
       winnerName: winnerPlayer ? winnerPlayer.name : 'The parents',
+      dialogueId: speaker ? speaker.id : null,
+      dialogueRole: speaker ? speaker.role : null,
       reason,
       durationMs: Math.min(now - this.startedAt, CONFIG.gameDurationMs),
       goal: CONFIG.coinGoal,

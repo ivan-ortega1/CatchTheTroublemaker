@@ -270,6 +270,20 @@ kbd { background: rgba(255,255,255,0.12); border: 1px solid var(--line); border-
 .stat { background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .stat strong { display: block; font-size: 1.5rem; }
 .stat span { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .1em; }
+.result-dialogue {
+  display: flex; align-items: center; justify-content: center; gap: 14px; margin: 0 0 24px;
+  padding: 10px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,0.05);
+  text-align: left;
+}
+.result-dialogue[hidden] { display: none; }
+.result-dialogue img { width: 34px; height: 52px; object-fit: contain; }
+.dialogue-copy { display: grid; gap: 4px; }
+.dialogue-copy strong { font-size: 0.92rem; }
+.dialogue-play {
+  border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--accent);
+  font: inherit; font-size: 0.78rem; font-weight: 800; padding: 4px 10px; cursor: pointer;
+}
+.dialogue-play:hover { background: rgba(255,255,255,0.08); }
 
 footer { margin-top: auto; padding-top: 28px; color: #7b83a8; font-size: 0.8rem; text-align: center; }
 

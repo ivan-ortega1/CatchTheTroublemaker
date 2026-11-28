@@ -49,6 +49,7 @@ namespace CatchTheTroublemaker
         private CttLanDiscovery discovery;
         private P2PGame p2p;
         private float nextInputAt;
+        private string lastDialogueKey;
 
         private void Awake()
         {
@@ -185,6 +186,11 @@ namespace CatchTheTroublemaker
             Phase = phase;
             ui.ShowPhase(phase);
             if (phase != GamePhase.Playing) board.SetFollowTarget(null);
+            if (phase != GamePhase.Result)
+            {
+                CttSfx.Instance?.StopDialogue();
+                lastDialogueKey = "";
+            }
             UpdateMusic(phase);
         }
 
@@ -466,6 +472,22 @@ namespace CatchTheTroublemaker
             Result = result;
             SetPhase(GamePhase.Result);
             ui.ShowResult(result);
+            PlayResultDialogue(result);
+        }
+
+        /// <summary>
+        /// Plays the family voice line once per finished match. SSE, polling and
+        /// the result endpoint can all deliver the same result, hence the key.
+        /// </summary>
+        private void PlayResultDialogue(CTTResult result)
+        {
+            if (result == null) return;
+            string key = result.finishedAt + "|" + result.winnerTeam + "|" +
+                         result.dialogueId + "|" + result.dialogueRole;
+            if (key == lastDialogueKey) return;
+            lastDialogueKey = key;
+            CttSfx.Instance?.PlayDialogue(
+                CTTDialogue.ForResult(result, Lobby == null ? null : Lobby.families));
         }
 
         private void Fail(string error)

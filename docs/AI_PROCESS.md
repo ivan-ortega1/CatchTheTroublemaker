@@ -470,3 +470,70 @@ paritat de 400 ticks i les proves d'equilibri no s'han de repetir.
 - `node --check public/app.js`: sense errors de sintaxi.
 - `npm test`: **16/16**; el servidor i el selector de famílies no s'han modificat.
 - `git status` revisat abans de desar.
+
+---
+
+## 15. Sisena fase: veu del personatge a la pantalla de resultat
+
+L'usuari va afegir `Assets/Audio/Dialogue/Characters/Troublemakers/` amb dues línies
+per família (`DIA_Troublemakervictory` i `DIA_Troublemakerdefeat`) i va demanar:
+
+> "Show the correct family-specific troublemaker dialogue on the Result screen:
+> victory is the troublemaker who reached 50 coins first; defeat is the last
+> troublemaker caught before the match ended."
+
+### Regla del locutor
+
+El motor ja tenia `winnerId` (el nen que arriba a la meta, o l'últim pare que captura),
+però això **no** identifica el nen en una victòria dels pares. Per això s'afegeixen
+`dialogueId` i `dialogueRole` al resultat, sense canviar `winnerId` ni cap regla de joc:
+
+| Desenllaç | Locutor | Línia |
+| --- | --- | --- |
+| Un troublemaker arriba a 50 monedes | `winnerPlayer` | `DIA_Troublemakervictory` |
+| Els dos grounded / temps esgotat | `lastCaughtId` (amb *fallback* al primer eliminat i després al primer nen) | `DIA_Troublemakerdefeat` |
+
+`server/engine.js` desa `lastCaughtId` a `catchChild()` i calcula el locutor a
+`finish()`. `P2PEngine.cs` fa exactament el mateix amb `Find(lastCaughtId)` i
+`FirstTroublemaker()`, de manera que Solo, Multi i el servidor mostren la mateixa línia.
+`CTTResult` i el `MatchResult` del P2P porten els dos camps nous.
+
+### Selecció de la família i reproducció
+
+La correspondència és la mateixa que ja fan servir les icones: `troublemakerA` →
+`families[0]`, `troublemakerB` → `families[1]`, aplicada també quan el resultat només
+porta `winnerId` o cap camp explícit (es busca a `standings` i, si no hi ha res, al
+primer nen eliminat). Els ids de carpeta segueixen sent claus de protocol; els noms
+visibles no es toquen.
+
+- **Unity:** `CTTDialogue.cs` resol `Resources/CTTAudio/<família>/Troublemaker/<línia>`
+  amb `Resources.Load<AudioClip>`. Com que els fitxers exportats són `.mp3` llevat de
+  `JonathanJohnson` (`.wav`), l'eina `CTTDialogueCatalogBuilder.cs` (**Tools > Catch the
+  Troublemaker > Rebuild Dialogue Catalog**) copia els vuit clips al `Resources` amb
+  GUID nous; els originals no es modifiquen. `CttSfx` té una `AudioSource` independent
+  per al diàleg, i `GameManager` ho reprodueix **un sol cop per partida** (clau
+  `finishedAt|equip|id|rol`) perquè SSE, *polling* i l'endpoint poden lliurar el mateix
+  resultat. `UIManager.ShowResult()` afegeix la imatge del nen i el rètol
+  «CHARACTER LINE / MISSATGE DEL PERSONATGE» amb victory/defeat en CA/EN.
+- **Navegador:** `/api/config` inclou les URLs `dialogue.victory` / `dialogue.defeat`
+  per targeta, i el servidor serveix `/dialogue/...` des de `Assets/Audio/Dialogue`
+  amb MIME `audio/mpeg` o `audio/wav`. `showResult()` crea un `Audio` amb la línia
+  correcta (amb la mateixa clau anti-duplicats) i la pantalla ofereix un botó
+  **Play voice line / Escoltar el missatge** per si el navegador bloqueja l'autoplay.
+
+**Decisió clau:** el locutor viatja amb el resultat perquè el client no ha de deduir
+qui ha estat capturat a partir d'esdeveniments perduts. El motor només afegeix
+metadades de presentació, així que l'equilibri i la paritat JS↔C# no es alteren.
+
+### Verificació
+
+- Roslyn d'Unity 6: **0 errors** amb els dos fitxers nous inclosos al `.rsp`.
+- `node --check public/app.js`: net. `npm test`: **17/17** (noves comprovacions del
+  locutor en victòria, captura i temps esgotat, i de les URLs d'àudio a `/api/config`).
+- Prova de navegador: els vuit clips responen 200 amb `audio/*` i el cromàtic els
+  descodifica (`duration ≈ 3.1 s`). Amb `GAME_DURATION_MS=4000` es va forçar una
+  victòria dels pares: la pantalla va mostrar «Troublemaker A · defeat» i va demanar
+  `ClassicCaillou/DIA_Troublemakerdefeat.mp3`. Amb un *launcher* temporal que baixa
+  `coinGoal` a 1 i les famílies `JonathanJohnson` / `LittleBill`, un nen va arribar a
+  la meta: «Troublemaker A · victory» i `JonathanJohnson/DIA_Troublemakervictory.wav`.
+  Consola neta en ambdós casos. Cap d'aquests ajustos de prova es va desar al projecte.

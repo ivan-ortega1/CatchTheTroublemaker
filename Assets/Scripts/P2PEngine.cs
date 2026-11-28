@@ -112,7 +112,7 @@ namespace CatchTheTroublemaker
 
         private sealed class MatchResult
         {
-            public string winnerTeam, winnerId, winnerName, reason;
+            public string winnerTeam, winnerId, winnerName, dialogueId, dialogueRole, reason;
             public long durationMs, finishedAt;
             public int goal;
             public CTTStats stats;
@@ -133,6 +133,7 @@ namespace CatchTheTroublemaker
         private long startedAt, endsAt;
         private long tickCount;
         private string lastCatcherId;
+        private string lastCaughtId;
         private CTTStats stats = new CTTStats();
         private MatchResult result;
 
@@ -144,6 +145,8 @@ namespace CatchTheTroublemaker
             winnerTeam = result.winnerTeam,
             winnerId = result.winnerId,
             winnerName = result.winnerName,
+            dialogueId = result.dialogueId,
+            dialogueRole = result.dialogueRole,
             reason = result.reason,
             durationMs = result.durationMs,
             goal = result.goal,
@@ -443,6 +446,13 @@ namespace CatchTheTroublemaker
             return null;
         }
 
+        private Player FirstTroublemaker(bool eliminated)
+        {
+            foreach (Player p in players)
+                if (p.team == "troublemakers" && p.eliminated == eliminated) return p;
+            return null;
+        }
+
         private Coin NearestCoin(Player from, IList<Player> avoid = null)
         {
             Coin best = null;
@@ -602,6 +612,7 @@ namespace CatchTheTroublemaker
             child.lives--;
             stats.catches++;
             lastCatcherId = parent.id;
+            lastCaughtId = child.id;
             int dropped = child.coins;
             child.coins = 0;
             for (int i = 0; i < dropped; i++) respawns.Add(now + 200 + i * 45);
@@ -642,6 +653,11 @@ namespace CatchTheTroublemaker
         {
             if (result != null) return;
             status = "finished";
+            // Same speaker rule as the authoritative JS engine, so Solo and
+            // Multi P2P show and play exactly the same line as the server.
+            Player speaker = winnerTeam == "troublemakers"
+                ? winnerPlayer
+                : Find(lastCaughtId) ?? FirstTroublemaker(true) ?? FirstTroublemaker(false);
             var standings = new CTTStanding[players.Count];
             for (int i = 0; i < players.Count; i++)
             {
@@ -657,6 +673,8 @@ namespace CatchTheTroublemaker
                 winnerTeam = winnerTeam,
                 winnerId = winnerPlayer == null ? null : winnerPlayer.id,
                 winnerName = winnerPlayer == null ? "The parents" : winnerPlayer.name,
+                dialogueId = speaker == null ? null : speaker.id,
+                dialogueRole = speaker == null ? null : speaker.role,
                 reason = reason,
                 durationMs = Math.Min(now - startedAt, P2PConfig.GameDurationMs),
                 goal = P2PConfig.CoinGoal,

@@ -11,6 +11,7 @@ namespace CatchTheTroublemaker
         public static CttSfx Instance { get; private set; }
 
         private AudioSource source;
+        private AudioSource dialogueSource;
         private AudioClip hover;
         private AudioClip press;
         private AudioClip coin;
@@ -22,6 +23,13 @@ namespace CatchTheTroublemaker
             if (source == null) source = gameObject.AddComponent<AudioSource>();
             source.playOnAwake = false;
             source.loop = false;
+
+            // Dialogue is on its own source so a UI/coin one-shot cannot cut it off.
+            foreach (AudioSource existing in GetComponents<AudioSource>())
+                if (existing != source) { dialogueSource = existing; break; }
+            if (dialogueSource == null) dialogueSource = gameObject.AddComponent<AudioSource>();
+            dialogueSource.playOnAwake = false;
+            dialogueSource.loop = false;
         }
 
         public void Configure(AudioClip hoverClip, AudioClip pressClip, AudioClip coinClip)
@@ -34,6 +42,19 @@ namespace CatchTheTroublemaker
         public void PlayHover() => Play(hover);
         public void PlayPress() => Play(press);
         public void PlayCoin() => Play(coin);
+
+        /// <summary>Result voice line; replaces any line still playing.</summary>
+        public void PlayDialogue(AudioClip clip)
+        {
+            StopDialogue();
+            if (clip == null || dialogueSource == null) return;
+            dialogueSource.PlayOneShot(clip);
+        }
+
+        public void StopDialogue()
+        {
+            if (dialogueSource != null) dialogueSource.Stop();
+        }
 
         private void Play(AudioClip clip)
         {

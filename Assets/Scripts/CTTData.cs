@@ -77,6 +77,9 @@ namespace CatchTheTroublemaker
         public string winnerTeam;
         public string winnerId;
         public string winnerName;
+        /// <summary>Troublemaker whose dialogue line is played on the result screen.</summary>
+        public string dialogueId;
+        public string dialogueRole;
         public string reason;
         public long durationMs;
         public int goal;

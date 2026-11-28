@@ -59,6 +59,10 @@ test('host picks two distinct families and the start endpoint enforces it', asyn
   const sprite = await fetch(BASE + config.data.families[0].sprites.troublemaker);
   assert.equal(sprite.status, 200);
   assert.match(sprite.headers.get('content-type') || '', /image\/png/);
+  assert.match(config.data.families[0].dialogue.victory, /^\/dialogue\//);
+  const line = await fetch(BASE + config.data.families[0].dialogue.victory);
+  assert.equal(line.status, 200);
+  assert.match(line.headers.get('content-type') || '', /audio\//);
   const names = Object.fromEntries(config.data.families.map((f) => [f.id, f.name]));
   assert.equal(names.ClassicCaillou, 'The Andersons');
   assert.equal(names.EmilyAnderson, 'The Other Andersons');

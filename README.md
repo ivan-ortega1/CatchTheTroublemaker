@@ -55,6 +55,18 @@ copies the PNGs to `Assets/Resources/CTTCharacters/<family>/` so the cards can l
 real sprites by path at runtime (the browser reads the original folders through
 `/api/config`).
 
+**Result voice line.** The Result screen also plays the imported troublemaker dialogue
+from `Assets/Audio/Dialogue/Characters/Troublemakers/<family>/Troublemaker/`.
+On a troublemaker win it is the line of the kid who actually reached 50 coins
+(`DIA_Troublemakervictory`); on a parents win it is the line of the **last** kid caught
+before the match ended (`DIA_Troublemakerdefeat`, also used at timeout). The engine
+marks that speaker as `dialogueId` / `dialogueRole` in the result, so server, P2P Solo,
+P2P Multi and browser all agree. The role slot picks the family (`A` → `families[0]`,
+`B` → `families[1]`), and the clip is attributed on screen with the speaker's portrait.
+In Unity run **Tools > Catch the Troublemaker > Rebuild Dialogue Catalog** once to copy
+the eight clips (`.mp3` and `.wav`) into `Assets/Resources/CTTAudio/`; the browser reads
+them from `/dialogue/...` and offers a replay button in case autoplay is blocked.
+
 ### Play peer-to-peer (no server)
 
 Press **MODE: ONLINE** on the Home screen until it reads **MODE: P2P**, then use the
@@ -154,8 +166,9 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | `server/index.js` | HTTP routes, SSE, room lifecycle, match persistence |
 | `server/engine.js` | Deterministic map generation, movement, rules, bots, snapshots |
 | `server/config.js` | All balance constants and role metadata |
-| `Assets/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, LAN discovery, hostless P2P transport/engine/lockstep, JSON DTOs, procedural art and uGUI screens |
+| `Assets/Scripts/*.cs` | Unity 2D client: scene `GameManager` + network/UI/world/input managers, HTTP/SSE transport, LAN discovery, hostless P2P transport/engine/lockstep, JSON DTOs, procedural art, result dialogue and uGUI screens |
 | `Assets/CatchTheTroublemaker/Editor/CTTSceneSetup.cs` | Editor command that builds/wires the `GameManager` scene hierarchy |
+| `Assets/Editor/CTTDialogueCatalogBuilder.cs` | Editor command that copies the eight dialogue clips into `Resources/CTTAudio` for runtime builds |
 | `public/index.html` | Four screens: home, lobby, game, result |
 | `public/styles.css` | Responsive dark UI, high-contrast and reduced-motion support |
 | `public/app.js` | i18n (CA/EN), canvas renderer, input, SSE client |
@@ -170,7 +183,7 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Server status |
-| `GET` | `/api/config` | Balance constants, role metadata and family cards with sprite URLs |
+| `GET` | `/api/config` | Balance constants, role metadata and family cards with sprite + dialogue URLs |
 | `POST` | `/api/rooms` | Create room → `{ code, playerId }` |
 | `POST` | `/api/rooms/:code/join` | Join (reuses `playerId` on reconnect) |
 | `GET` | `/api/rooms/:code` | Lobby state |
@@ -193,6 +206,8 @@ Example result:
     "winnerTeam": "parents",
     "winnerId": "p-4f2a...",
     "winnerName": "The parents",
+    "dialogueId": "p-91cc...",
+    "dialogueRole": "troublemakerB",
     "reason": "both troublemakers were grounded",
     "durationMs": 143220,
     "goal": 50,
@@ -206,10 +221,10 @@ Example result:
 ## Verification
 
 ```bash
-npm test          # 15 tests: engine rules + HTTP API + no-SSE presence
+npm test          # 17 tests: engine rules + HTTP API + no-SSE presence
 ```
 
-A browser smoke test was also performed: a room was created, a role chosen, the match started, the SSE stream delivered state, a coin was collected and a valid catch fired (see `docs/AI_PROCESS.md`).
+A browser smoke test was also performed: a room was created, a role chosen, the match started, the SSE stream delivered state, a coin was collected and a valid catch fired (see `docs/AI_PROCESS.md`). Dialogue was checked in-browser too: all eight clips return 200 with an audio MIME type and decode, a timeout match played `ClassicCaillou/DIA_Troublemakerdefeat.mp3`, and a coin-goal match played `JonathanJohnson/DIA_Troublemakervictory.wav` — both with a clean console.
 
 ## Requirements checklist
 
