@@ -126,6 +126,34 @@ test('a grounded human stays in snapshots so clients can switch to spectating', 
   assert.deepEqual({ x: child.x, y: child.y }, before, 'spectator input never moves the grounded actor');
 });
 
+test('pause freezes the match clock and simulation until resumed', () => {
+  const match = new Match({
+    id: 'TPAUSE', seed: 9, humans: [human('kid', 'troublemakerA')], now: NOW,
+  });
+  match.tick(NOW, 0.05);
+  const kid = match.getPlayer('kid');
+  const before = match.getSnapshot(NOW, false);
+  assert.equal(before.paused, false);
+
+  assert.equal(match.pause(NOW + 1000), true);
+  assert.equal(match.paused, true);
+  const frozen = match.getSnapshot(NOW + 1000, false);
+  match.setInput('kid', { dx: 1, dy: 0, sprint: false }, NOW + 2000);
+  match.tick(NOW + 10_000, 0.05);
+  const during = match.getSnapshot(NOW + 10_000, false);
+  assert.equal(during.paused, true);
+  assert.equal(during.remainingMs, frozen.remainingMs, 'the timer must not drain while paused');
+  assert.equal(during.tick, before.tick, 'no simulation ticks while paused');
+  assert.equal(kid.intent.dx, 0, 'input posted while paused is ignored');
+
+  assert.equal(match.resume(NOW + 20_000), true);
+  match.tick(NOW + 20_050, 0.05);
+  const after = match.getSnapshot(NOW + 20_050, false);
+  assert.equal(after.paused, false);
+  assert.equal(after.tick, before.tick + 1);
+  assert.equal(after.remainingMs, during.remainingMs - 50, 'the clock resumes where it stopped');
+});
+
 test('reaching the coin goal wins for the troublemakers', () => {
   const match = new Match({ id: 'T5', seed: 4, humans: [], now: NOW });
   const child = match.getPlayer('bot-troublemakerB-T5');

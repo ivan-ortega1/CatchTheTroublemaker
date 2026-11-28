@@ -218,6 +218,11 @@ export class Match {
     for (let i = 0; i < CONFIG.initialCoins; i++) this.spawnCoin();
 
     this.status = 'playing';
+    // Pause keeps every deadline in "game time". While paused, gameNow() is frozen;
+    // on resume the whole pause window is added to the offset, so the match clock
+    // and all cooldowns continue exactly where they stopped.
+    this.pausedAt = null;
+    this.pausedTotalMs = 0;
     this.startedAt = now;
     this.endsAt = now + CONFIG.gameDurationMs;
     this.tickCount = 0;
@@ -283,7 +288,31 @@ export class Match {
     if (disconnected) p.intent = { dx: 0, dy: 0 };
   }
 
+  get paused() {
+    return this.pausedAt != null;
+  }
+
+  gameNow(now = Date.now()) {
+    const at = this.pausedAt == null ? now : this.pausedAt;
+    return at - this.pausedTotalMs;
+  }
+
+  pause(now = Date.now()) {
+    if (this.status !== 'playing' || this.pausedAt != null) return false;
+    this.pausedAt = now;
+    return true;
+  }
+
+  resume(now = Date.now()) {
+    if (this.pausedAt == null) return false;
+    this.pausedTotalMs += Math.max(0, now - this.pausedAt);
+    this.pausedAt = null;
+    return true;
+  }
+
   setInput(playerId, input, now = Date.now()) {
+    if (this.paused) return;
+    now = this.gameNow(now);
     const p = this.getPlayer(playerId);
     if (!p || p.eliminated || now < p.respawnAt) return;
     const dx = Math.max(-1, Math.min(1, Number(input?.dx) || 0));
@@ -352,7 +381,8 @@ export class Match {
   }
 
   tick(now = Date.now(), dt = CONFIG.tickMs / 1000) {
-    if (this.status !== 'playing') return;
+    if (this.status !== 'playing' || this.paused) return;
+    now = this.gameNow(now);
     this.tickCount++;
 
     // Scheduled coin respawns (including coins dropped by a caught child).
@@ -491,8 +521,10 @@ export class Match {
   }
 
   getSnapshot(now = Date.now(), full = false) {
+    now = this.gameNow(now);
     const snap = {
       status: this.status,
+      paused: this.paused,
       now,
       tick: this.tickCount,
       remainingMs: Math.max(0, this.endsAt - now),

@@ -14,7 +14,7 @@ namespace CatchTheTroublemaker
     [Serializable]
     public class P2PMessage
     {
-        public string t;       // hello | roster | role | ready | input | bye
+        public string t;       // hello | roster | role | ready | input | pause | bye
         public string id;      // sender peer id (set by Broadcast)
         public string name;
         public string room;
@@ -28,6 +28,7 @@ namespace CatchTheTroublemaker
         public string host;    // id of the room creator (lobby master)
         public string people;  // compact "id|name|role;..." roster with usernames
         public string families; // compact "A~B" family selection from the master
+        public bool paused;    // pause/resume control message
     }
 
     /// <summary>

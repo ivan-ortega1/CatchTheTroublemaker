@@ -260,7 +260,7 @@ function openStream(room, playerId, req, res) {
   const set = streamSet(room);
   const wasFirst = [...set].every((c) => c.playerId !== playerId);
   set.add(client);
-  if (wasFirst && room.match && room.status === 'playing') {
+  if (wasFirst && room.match && room.status === 'playing' && !room.match.paused) {
     room.match.setDisconnected(playerId, false);
   }
 
@@ -277,7 +277,7 @@ function openStream(room, playerId, req, res) {
     clearInterval(keepAlive);
     set.delete(client);
     const stillConnected = [...set].some((c) => c.playerId === playerId);
-    if (!stillConnected && room.match && room.status === 'playing') {
+    if (!stillConnected && room.match && room.status === 'playing' && !room.match.paused) {
       room.match.setDisconnected(playerId, true);
     }
     if (set.size === 0) streams.delete(room.code);
@@ -328,6 +328,7 @@ async function handleApi(req, res, parts, url) {
       createdAt: Date.now(),
       lastBroadcast: 0,
       persisted: false,
+      pauseRequester: null,
       seen: new Map(), // last input/stream time per player (Unity can play without SSE)
     };
     rooms.set(roomCode, room);
@@ -494,6 +495,34 @@ async function handleApi(req, res, parts, url) {
     return true;
   }
 
+  // Any connected player can pause/resume a live match with Escape. The engine
+  // freezes its game clock, so neither the timer nor cooldowns advance while paused.
+  if ((action === 'pause' || action === 'resume') && method === 'POST') {
+    const body = await readBody(req);
+    if (!room.players.has(body.playerId)) {
+      sendJSON(res, 403, { error: 'Unknown playerId for this room' });
+      return true;
+    }
+    if (!room.match || room.status !== 'playing') {
+      sendJSON(res, 409, { error: 'No active match to pause' });
+      return true;
+    }
+
+    const now = Date.now();
+    const changed = action === 'pause'
+      ? room.match.pause(now)
+      : room.match.resume(now);
+    if (changed) {
+      if (action === 'pause') room.pauseRequester = body.playerId;
+      else room.pauseRequester = null;
+      const snapshot = room.match.getSnapshot(now, true);
+      snapshot.events = room.match.drainEvents();
+      broadcast(room, 'state', snapshot);
+    }
+    sendJSON(res, 200, { ok: true, paused: room.match.paused });
+    return true;
+  }
+
   if (action === 'input' && method === 'POST') {
     if (!room.match || room.status !== 'playing') {
       sendJSON(res, 409, { error: 'No active match' });
@@ -573,7 +602,8 @@ setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
     if (room.status !== 'playing' || !room.match) continue;
-    syncPresence(room); // refresh input/SSE presence; stale clients fall back to bots
+    // Presence must not replace a paused client with a bot while the match is frozen.
+    if (!room.match.paused) syncPresence(room);
     room.match.tick(now, CONFIG.tickMs / 1000);
 
     if (room.match.status === 'finished') {

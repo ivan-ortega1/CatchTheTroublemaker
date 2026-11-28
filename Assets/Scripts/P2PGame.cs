@@ -70,6 +70,12 @@ namespace CatchTheTroublemaker
         private bool resultSent;
         private CTTResult cachedResult;
 
+        // Lockstep pause. A request takes effect two ticks later so every peer has
+        // time to see it before the simulation stops at the same pendingTick.
+        private bool paused;
+        private bool pausePending;
+        private int pauseAtTick;
+
         /// <summary>A solo session is active without any transport.</summary>
         public bool IsActive => transport != null || soloSession;
         public string RoomCode => soloSession ? "SOLO" : (transport == null ? "" : transport.Room);
@@ -167,6 +173,9 @@ namespace CatchTheTroublemaker
             pendingTick = 0;
             resultSent = false;
             localInput = default;
+            paused = false;
+            pausePending = false;
+            pauseAtTick = 0;
         }
 
         public void SetRole(string role)
@@ -255,9 +264,58 @@ namespace CatchTheTroublemaker
             startHumans = null;
             inputs.Clear();
             lastInput.Clear();
+            paused = false;
+            pausePending = false;
+            pauseAtTick = 0;
             foreach (PeerInfo p in peers.Values) { p.ready = false; p.seed = 0; }
             StartMatch();
             LobbyChanged?.Invoke(BuildLobby());
+        }
+
+        /// <summary>
+        /// Pauses/resumes the lockstep simulation. Multiplayer peers stop at the same
+        /// pendingTick (two ticks after the request); a solo session stops at once.
+        /// </summary>
+        public void SetPaused(bool value)
+        {
+            if (!IsActive || match == null || resultSent) return;
+
+            if (soloSession || transport == null)
+            {
+                paused = value;
+                pausePending = false;
+            }
+            else if (value)
+            {
+                pausePending = true;
+                pauseAtTick = pendingTick + 2;
+                transport.Broadcast(new P2PMessage
+                {
+                    t = "pause", paused = true, tick = pauseAtTick,
+                });
+            }
+            else
+            {
+                pausePending = false;
+                paused = false;
+                tickOpenedAt = Time.unscaledTime;
+                nextSendAt = Time.unscaledTime;
+                transport.Broadcast(new P2PMessage
+                {
+                    t = "pause", paused = false, tick = pendingTick,
+                });
+            }
+            PublishState();
+        }
+
+        private void PublishState()
+        {
+            if (match == null) return;
+            long simNow = (long)pendingTick * P2PConfig.TickMs;
+            CTTState snapshot = match.GetSnapshot(simNow, pendingTick == 0);
+            snapshot.paused = paused || pausePending;
+            snapshot.events = Array.Empty<CTTEvent>();
+            StateChanged?.Invoke(snapshot);
         }
 
         public void SetLocalInput(int dx, int dy, bool sprint)
@@ -358,6 +416,27 @@ namespace CatchTheTroublemaker
 
                 case "input":
                     RecordInput(msg.id, msg);
+                    break;
+
+                case "pause":
+                    if (match != null)
+                    {
+                        if (msg.paused)
+                        {
+                            // Buffer the stop so every peer freezes at the same tick.
+                            int target = msg.tick > pendingTick ? msg.tick : pendingTick + 1;
+                            if (!pausePending || target < pauseAtTick) pauseAtTick = target;
+                            pausePending = true;
+                        }
+                        else
+                        {
+                            pausePending = false;
+                            paused = false;
+                            tickOpenedAt = Time.unscaledTime;
+                            nextSendAt = Time.unscaledTime;
+                        }
+                        PublishState();
+                    }
                     break;
             }
             if (match == null) LobbyChanged?.Invoke(BuildLobby());
@@ -583,6 +662,9 @@ namespace CatchTheTroublemaker
             tickOpenedAt = Time.unscaledTime;
             nextSendAt = Time.unscaledTime;
             resultSent = false;
+            paused = false;
+            pausePending = false;
+            pauseAtTick = 0;
             transport?.Broadcast(new P2PMessage { t = "roster", claims = startHumans });
             StateChanged?.Invoke(match.GetSnapshot(0L, true));
         }
@@ -613,6 +695,16 @@ namespace CatchTheTroublemaker
                 return;
             }
             if (resultSent) return;
+
+            if (paused) return; // lockstep clock is frozen; no input or ticks
+
+            if (pausePending && pendingTick >= pauseAtTick)
+            {
+                paused = true;
+                pausePending = false;
+                PublishState();
+                return;
+            }
 
             if (Time.unscaledTime >= nextSendAt)
             {
@@ -653,6 +745,7 @@ namespace CatchTheTroublemaker
 
             match.Tick(simNow, P2PConfig.TickMs / 1000f);
             CTTState snapshot = match.GetSnapshot(simNow, pendingTick == 0);
+            snapshot.paused = paused;
             snapshot.events = ParseEvents(match.DrainEvents());
             StateChanged?.Invoke(snapshot);
             pendingTick++;

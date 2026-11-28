@@ -623,34 +623,49 @@ resultat anterior.
 
 ---
 
-## 18. Menú d'Escape al client d'escriptori
+## 18. Menú d'Escape i pausa autoritativa
 
 > "Can you add an option to exit the game? When you're in menu, when you hit escape the game closes, but when you hit escape while in a game, it shows a menu asking you to restart the match, exit to menu, or exit to desktop (AKA closing the game)"
+>
+> "The game should pause if the user hits escape during a game and displays the pause menu"
 
 ### Decisió
 
-L'usuari va triar explícitament **només Unity**: el navegador no rep cap canvi.
-El tancament real només existeix en una build d'escriptori; a l'Editor, `Application.Quit()`
-només ho registra.
+L'usuari va triar explícitament **només Unity** per a la interacció amb `Esc`; el
+navegador no mostra el menú. En canvi, la pausa ha de ser real i autoritativa: el
+servidor/P2P congela la partida per a tothom, no només atura l'input local. El
+tancament real només existeix en una build d'escriptori; a l'Editor,
+`Application.Quit()` només ho registra.
 
 ### Canvis
 
 - `GameManager.Update()` detecta `Keyboard.current.escapeKey.wasPressedThisFrame`.
-  Fora de `Playing` crida `Application.Quit()`; dins de `Playing` obre/tanca el
-  menú amb `SetPaused()`.
+  Fora de `Playing` crida `Application.Quit()`; dins de `Playing` crida
+  `SetPaused()` amb notificació a la transport.
+- `Match` (servidor) guarda `pausedAt` / `pausedTotalMs`. `gameNow(now)` devolia el
+  temps congelat mentre està en pausa i suma el interval en reprendre, així
+  `remainingMs`, cooldowns, respawns i botons no salten. `tick()` i `setInput()`
+  no fan res mentre `paused`, i el snapshot inclou `paused`.
+- Nous endpoints `POST /pause` i `POST /resume` (qualsevol jugador connectat).
+  El bucle autoritatiu continua enviant snapshots congelats i no substitueix
+  jugadors per bots mentre la partida està aturada.
+- En P2P, `P2PGame.SetPaused()` emet un missatge `pause` i totes les peers s'aturen
+  al mateix `pendingTick` (dos ticks de marge). Reprendre reprèn exactament aquell
+  tick amb el mateix `simNow`. Solo s'atura immediatament.
 - El menú és una capa nova de `UIManager` (`PausePanel`) construïda després del HUD
-  però abans del *toast*, així els errors de reinici (per exemple, no ser l'amfitrió)
-  continuen sent visibles. Botons CA/EN: `RESTART MATCH`, `EXIT TO MENU` i
-  `EXIT TO DESKTOP`, més la pista «Esc: resume».
-- `SetPaused()` atura l'input local (inclòs l'input neutre P2P), bloqueja el pad
-  tàctil i crida `BoardRenderer.SetCameraInputPaused()` perquè el ghost no es mogui
-  darrere del menú. La partida del servidor **no** es posa en pausa: el menú és local.
-- `ShowPhase()` i `Refresh()` netegen/restauren la visibilitat del menú, de manera
-  que rebre un resultat o canviar d'idioma/contrast no deixa una capa fantasma.
-- `Restart match` reutilitza `Rematch()`. En servidor, `EnterGame()` tanca el menú
-  quan arriba el nou snapshot; en P2P passa el mateix amb l'estat local.
+  però abans del *toast*. Botons CA/EN: `RESUME`, `RESTART MATCH`, `EXIT TO MENU` i
+  `EXIT TO DESKTOP`. `ShowPhase()` i `Refresh()` netegen/restauren la visibilitat.
+- `SetPaused(value, notify)` distingeix la comanda local dels snapshots remots
+  (`notify=false`). `pauseRequestPending` evita que un snapshot antic tanqui el menú
+  abans de la resposta HTTP. `Exit to menu` i `Exit to desktop` primer reprenen i
+  només després surten, per no deixar els altres jugadors congelats.
+- `BoardRenderer.SetCameraInputPaused()` bloqueja el pan/zoom del ghost darrere
+  del menú, i l'input local/P2P es neutralitza igual que abans.
 
 ### Verificació
 
-Roslyn d'Unity 6: **0 errors** (només els avisos `FindFirstObjectByType` ja coneguts).
-No cal cap prova de navegador perquè `public/app.js` no es toca.
+- `npm test`: **20/20**. Noves proves: el motor no avança ni el rellotge ni el tick
+  mentre està en pausa i reprèn exactament on ho va deixar; l'API exposa
+  `/pause` + `/resume` i el snapshot congelat no canvia durant 220 ms.
+- Roslyn d'Unity 6: **0 errors** (només els avisos `FindFirstObjectByType` ja coneguts).
+- No cal cap prova de navegador perquè `public/app.js` no es toca.

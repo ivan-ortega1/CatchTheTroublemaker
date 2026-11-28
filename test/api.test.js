@@ -162,6 +162,32 @@ test('state and result endpoints expose the authoritative match', async () => {
   assert.equal(result.data.status, 'playing');
 });
 
+test('pause freezes the authoritative match and resume continues it', async () => {
+  const created = await api('POST', '/api/rooms', { name: 'Pauser' });
+  const { code, playerId } = created.data;
+  await api('POST', `/api/rooms/${code}/start`, { playerId });
+
+  await api('POST', `/api/rooms/${code}/pause`, { playerId });
+  const frozen = await api('GET', `/api/rooms/${code}/state`);
+  assert.equal(frozen.data.paused, true);
+
+  await new Promise((r) => setTimeout(r, 220));
+  const still = await api('GET', `/api/rooms/${code}/state`);
+  assert.equal(still.data.paused, true);
+  assert.equal(still.data.remainingMs, frozen.data.remainingMs);
+  assert.equal(still.data.tick, frozen.data.tick);
+
+  const resumed = await api('POST', `/api/rooms/${code}/resume`, { playerId });
+  assert.equal(resumed.status, 200);
+  assert.equal(resumed.data.paused, false);
+
+  await new Promise((r) => setTimeout(r, 220));
+  const after = await api('GET', `/api/rooms/${code}/state`);
+  assert.equal(after.data.paused, false);
+  assert.ok(after.data.tick > still.data.tick, 'the simulation advances after resume');
+  assert.ok(after.data.remainingMs < still.data.remainingMs, 'the timer resumes after resume');
+});
+
 test('a client that only polls and posts input is never replaced by a bot', async () => {
   // Unity can play without opening the SSE stream. Presence must be inferred
   // from recent input, both at kickoff and on every tick.

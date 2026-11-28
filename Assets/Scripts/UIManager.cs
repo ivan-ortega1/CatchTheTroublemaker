@@ -24,6 +24,7 @@ namespace CatchTheTroublemaker
         public event Action DiscoveryRequested;
         public event Action P2pModeToggled;
         public event Action P2pKindToggled;
+        public event Action PauseResumeRequested;
         public event Action PauseRestartRequested;
         public event Action PauseMenuRequested;
         public event Action PauseQuitRequested;
@@ -533,15 +534,18 @@ namespace CatchTheTroublemaker
             CttUi.Label(At(card, "Hint", 700, 54, 138), "Text",
                 CTTConfig.Tr("pauseHint", ca), 22, CttUi.Muted);
 
+            CttUi.Button(card, "PauseResume", CTTConfig.Tr("resume", ca), CttUi.Accent2,
+                () => PauseResumeRequested?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(520, 70), new Vector2(0, -220), 28);
             CttUi.Button(card, "PauseRestart", CTTConfig.Tr("restartMatch", ca), CttUi.Accent,
                 () => PauseRestartRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(520, 76), new Vector2(0, -246), 28);
+                new Vector2(0.5f, 1f), new Vector2(520, 70), new Vector2(0, -308), 28);
             CttUi.Button(card, "PauseMenu", CTTConfig.Tr("exitMenu", ca), CttUi.Panel,
                 () => PauseMenuRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(520, 76), new Vector2(0, -350), 28);
+                new Vector2(0.5f, 1f), new Vector2(520, 70), new Vector2(0, -396), 28);
             CttUi.Button(card, "PauseQuit", CTTConfig.Tr("exitDesktop", ca), CttUi.Danger,
                 () => PauseQuitRequested?.Invoke(),
-                new Vector2(0.5f, 1f), new Vector2(520, 76), new Vector2(0, -454), 28);
+                new Vector2(0.5f, 1f), new Vector2(520, 70), new Vector2(0, -484), 28);
 
             pausePanel.gameObject.SetActive(false);
         }

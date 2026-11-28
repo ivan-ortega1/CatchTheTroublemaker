@@ -137,6 +137,7 @@ namespace CatchTheTroublemaker
     public class CTTState
     {
         public string status;
+        public bool paused;
         public long now;
         public long tick;
         public long remainingMs;

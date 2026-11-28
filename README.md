@@ -122,7 +122,7 @@ When a child is caught they lose **all** their coins, are sent home for 3 second
 
 If a **human troublemaker** uses all three lives they are grounded but stay in the room with their seat, presence and result intact. Gameplay input stops at once and the touch controls are hidden; after a **2.5 second pause** (with a countdown in the HUD), a free **ghost camera** takes over (drag or WASD/arrows to pan, wheel/+/− to zoom, reset via the banner button). The ghost view is clamped only by the map's **outer wall** — inner walls do not block it. In Unity, touch drag and pinch zoom work too, and `R`/`Home` reset the view. The match continues until the other troublemaker is grounded, reaches 50 coins, or time runs out.
 
-In the **Unity desktop client**, `Esc` quits from the menus. During a match it opens a pause menu with **Restart match**, **Exit to menu**, and **Exit to desktop**; `Esc` again resumes. The pause is local (input and free camera stop on this client), while the authoritative match keeps running for everyone else. The browser client is not changed.
+In the **Unity desktop client**, `Esc` quits from the menus. During a match it pauses the authoritative match for everyone and opens a pause menu with **Resume**, **Restart match**, **Exit to menu**, and **Exit to desktop**; `Esc` again resumes. The engine clock, movement, coins, catches and bots all freeze, then continue exactly where they stopped. Server mode uses `POST /pause` and `POST /resume`; P2P freezes every peer at the same lockstep tick. Browser players see the frozen snapshot but cannot trigger the menu.
 
 ### How the difficulty is balanced
 
@@ -199,6 +199,8 @@ All values live in [`server/config.js`](server/config.js) so they can be tuned i
 | `GET` | `/api/rooms/:code/state` | Full snapshot (polling fallback) |
 | `GET` | `/api/rooms/:code/result` | **Required endpoint: who won** |
 | `POST` | `/api/rooms/:code/restart` | Host starts a rematch with a new seed |
+| `POST` | `/api/rooms/:code/pause` | Freeze the live match (any connected player) |
+| `POST` | `/api/rooms/:code/resume` | Continue from the exact frozen game time |
 
 Example result:
 

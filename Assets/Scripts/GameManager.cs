@@ -58,6 +58,8 @@ namespace CatchTheTroublemaker
         private bool localGrounded;
         private float ghostAt;
         private bool paused;
+        private bool pauseRequestPending;
+        private Action afterResume;
 
         private void Awake()
         {
@@ -119,6 +121,7 @@ namespace CatchTheTroublemaker
             ui.DiscoveryRequested += () => FindLanServer(false);
             ui.P2pModeToggled += ToggleP2pMode;
             ui.P2pKindToggled += ToggleP2pKind;
+            ui.PauseResumeRequested += ResumeFromPause;
             ui.PauseRestartRequested += RestartFromPause;
             ui.PauseMenuRequested += ExitToMenuFromPause;
             ui.PauseQuitRequested += ExitDesktopFromPause;
@@ -170,8 +173,8 @@ namespace CatchTheTroublemaker
         private void Update()
         {
             // Escape quits from every menu phase and toggles the in-match menu while
-            // playing. The pause menu is local: it stops this client's input, but the
-            // authoritative server match keeps running underneath it.
+            // playing. Pausing is authoritative: the engine freezes its clock, so the
+            // timer, movement, coins and catches stop for everyone.
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 if (Phase == GamePhase.Playing) SetPaused(!paused);
@@ -221,7 +224,9 @@ namespace CatchTheTroublemaker
         private void SetPhase(GamePhase phase)
         {
             Phase = phase;
-            SetPaused(false);
+            pauseRequestPending = false;
+            afterResume = null;
+            SetPaused(false, false);
             localGrounded = false;
             ghostAt = 0f;
             ui.ShowPhase(phase);
@@ -452,11 +457,15 @@ namespace CatchTheTroublemaker
 
         /* ----------------------------- pause menu ----------------------------- */
 
-        private void SetPaused(bool value)
+        /// <summary>
+        /// Shows/hides the pause menu and freezes the authoritative match. Remote
+        /// snapshots call this with notify=false so they do not echo the command.
+        /// </summary>
+        private void SetPaused(bool value, bool notify = true)
         {
             // The pause menu belongs to a live match only; phase changes always clear it.
             if (value && Phase != GamePhase.Playing) value = false;
-            if (paused == value) return;
+            if (paused == value && !notify) return;
             paused = value;
             ui.SetPauseVisible(value);
             board.SetCameraInputPaused(value);
@@ -465,24 +474,62 @@ namespace CatchTheTroublemaker
                 if (ui.P2pMode && p2p != null && p2p.IsActive) p2p.SetLocalInput(0, 0, false);
                 nextInputAt = 0f;
             }
+            if (!notify) return;
+
+            if (ui.P2pMode)
+            {
+                if (p2p != null && p2p.IsActive) p2p.SetPaused(value);
+                if (!value) RunAfterResume();
+                return;
+            }
+
+            pauseRequestPending = true;
+            network.PostMatchAction(RoomCode, PlayerId, value ? "/pause" : "/resume",
+                _ =>
+                {
+                    pauseRequestPending = false;
+                    if (!value) RunAfterResume();
+                },
+                error =>
+                {
+                    pauseRequestPending = false;
+                    if (Phase == GamePhase.Playing && paused == value) SetPaused(!value, false);
+                    Fail(error);
+                    if (!value) RunAfterResume();
+                });
+        }
+
+        private void RunAfterResume()
+        {
+            Action next = afterResume;
+            afterResume = null;
+            next?.Invoke();
+        }
+
+        private void ResumeFromPause()
+        {
+            if (paused) SetPaused(false);
         }
 
         private void RestartFromPause()
         {
             if (!paused) return;
-            Rematch(); // SetPhase() closes the menu when the new match is ready.
+            afterResume = null;
+            Rematch(); // the new match starts unpaused and SetPhase() closes the menu
         }
 
         private void ExitToMenuFromPause()
         {
+            if (!paused) { LeaveRoom(); return; }
+            afterResume = LeaveRoom; // do not strand the other players in a paused match
             SetPaused(false);
-            LeaveRoom();
         }
 
         private void ExitDesktopFromPause()
         {
+            if (!paused) { QuitGame(); return; }
+            afterResume = QuitGame;
             SetPaused(false);
-            QuitGame();
         }
 
         private void QuitGame()
@@ -529,6 +576,10 @@ namespace CatchTheTroublemaker
             if (snapshot.status == "playing")
             {
                 if (Phase != GamePhase.Playing) EnterGame();
+                // A pause can be started by another player; mirror it locally unless
+                // our own pause/resume HTTP request is still in flight.
+                if (!pauseRequestPending && snapshot.paused != paused)
+                    SetPaused(snapshot.paused, false);
                 bool grounded = IsLocalGrounded(snapshot);
                 if (grounded && !localGrounded)
                 {
