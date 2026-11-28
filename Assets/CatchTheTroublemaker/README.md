@@ -94,6 +94,10 @@ The runtime scripts now live in `Assets/Scripts/`; this folder keeps the client 
   countdown, a free ghost camera takes over (WASD/arrows, drag/pinch, wheel/zoom keys,
   `R`/`Home` to reset). The ghost is bounded only by the outer map wall — inner walls
   are ignored — and the HUD touch pad is hidden with a CA/EN spectator banner.
+- **Escape menu (desktop):** `Esc` quits from the menus and opens a localized pause
+  overlay during a match (Restart match / Exit to menu / Exit to desktop). `Esc`
+  again resumes; local input and free-camera controls stop while it is open, but the
+  authoritative match continues for other players.
 - **Characters are selected-family sprites:** `fatherA`/`motherA`/`troublemakerA` come
   from family A and the B roles from family B. The menu legend, lobby cards, HUD strip,
   score tags and world `SpriteRenderer` objects all use the same art. The local player

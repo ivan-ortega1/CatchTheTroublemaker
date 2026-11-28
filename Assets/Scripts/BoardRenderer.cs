@@ -41,6 +41,7 @@ namespace CatchTheTroublemaker
         private const float MinZoom = 1f;
         private const float MaxZoom = 3f;
         private bool spectator;
+        private bool cameraInputPaused;
         private float freeZoom = 1f;
         private Vector3 freeCameraTarget;
         private bool mouseDragging;
@@ -89,6 +90,17 @@ namespace CatchTheTroublemaker
 
         public void SetFollowTarget(string playerId) => followId = playerId;
 
+        /// <summary>Freezes free-camera controls while the in-match Escape menu is open.</summary>
+        public void SetCameraInputPaused(bool paused)
+        {
+            cameraInputPaused = paused;
+            if (paused)
+            {
+                mouseDragging = touchDragging = false;
+                lastPinchDistance = 0f;
+            }
+        }
+
         /// <summary>
         /// A grounded human troublemaker keeps their seat in the snapshot but stops
         /// controlling a character. Switch to a free camera; the caller restores the
@@ -115,6 +127,7 @@ namespace CatchTheTroublemaker
             foreach (var coin in coinViews) if (coin != null) coin.gameObject.SetActive(false);
             followId = null;
             spectator = false;
+            cameraInputPaused = false;
             freeZoom = MinZoom;
             mouseDragging = touchDragging = false;
             lastPinchDistance = 0f;
@@ -300,7 +313,7 @@ namespace CatchTheTroublemaker
         /// <summary>Free-look controls, only active while spectating.</summary>
         private void Update()
         {
-            if (!spectator) return;
+            if (!spectator || cameraInputPaused) return;
             float dt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
 
             Keyboard keyboard = Keyboard.current;

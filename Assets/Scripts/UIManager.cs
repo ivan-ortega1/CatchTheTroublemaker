@@ -24,6 +24,9 @@ namespace CatchTheTroublemaker
         public event Action DiscoveryRequested;
         public event Action P2pModeToggled;
         public event Action P2pKindToggled;
+        public event Action PauseRestartRequested;
+        public event Action PauseMenuRequested;
+        public event Action PauseQuitRequested;
 
         /// <summary>True when the home screen is configured for hostless LAN play.</summary>
         public bool P2pMode { get; private set; }
@@ -85,7 +88,7 @@ namespace CatchTheTroublemaker
         private GameManager game;
         private GamePhase phase;
         private Canvas canvas;
-        private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel;
+        private RectTransform homePanel, lobbyPanel, hudPanel, resultPanel, pausePanel;
         private Text toast, homeStatus, lobbyCodeCaption, lobbyCode, lobbyPlayers, lobbyNames, lobbyHint, familyCaption, familyHint, hudRole, hudLives;
         private Text hudTimer, hudScoreA, hudScoreB, hudSprint, resultTitle, resultReason, resultStats;
         private Text spectatorHint;
@@ -178,6 +181,10 @@ namespace CatchTheTroublemaker
             CttUi.Button(canvas.transform, "Contrast", CTTConfig.Tr("contrast", ca), CttUi.Panel,
                 () => ContrastToggled?.Invoke(),
                 new Vector2(1f, 1f), new Vector2(230, 54), new Vector2(-430, -44), 22);
+
+            // Built after the phase panels so the pause overlay draws above the HUD,
+            // but before the toast so restart errors stay readable on top of it.
+            BuildPause();
 
             var toastHolder = CttUi.Rect("ToastHolder", canvas.transform);
             CttUi.Place(toastHolder, new Vector2(0.5f, 1f), new Vector2(1100, 54), new Vector2(0, -128));
@@ -515,6 +522,30 @@ namespace CatchTheTroublemaker
                 new Vector2(0.5f, 1f), new Vector2(400, 60), new Vector2(0, -726), 24);
         }
 
+        private void BuildPause()
+        {
+            pausePanel = Card("PausePanel");
+            RectTransform card = CardInner(pausePanel, 760, 600);
+            bool ca = game != null && game.Catalan;
+
+            CttUi.Label(At(card, "Title", 700, 80, 56), "Text",
+                CTTConfig.Tr("paused", ca), 52, CttUi.Accent);
+            CttUi.Label(At(card, "Hint", 700, 54, 138), "Text",
+                CTTConfig.Tr("pauseHint", ca), 22, CttUi.Muted);
+
+            CttUi.Button(card, "PauseRestart", CTTConfig.Tr("restartMatch", ca), CttUi.Accent,
+                () => PauseRestartRequested?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(520, 76), new Vector2(0, -246), 28);
+            CttUi.Button(card, "PauseMenu", CTTConfig.Tr("exitMenu", ca), CttUi.Panel,
+                () => PauseMenuRequested?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(520, 76), new Vector2(0, -350), 28);
+            CttUi.Button(card, "PauseQuit", CTTConfig.Tr("exitDesktop", ca), CttUi.Danger,
+                () => PauseQuitRequested?.Invoke(),
+                new Vector2(0.5f, 1f), new Vector2(520, 76), new Vector2(0, -454), 28);
+
+            pausePanel.gameObject.SetActive(false);
+        }
+
         /* ----------------------------- presentation ----------------------------- */
 
         /// <summary>Remembers the pair picked by the host so later screens keep the art.</summary>
@@ -554,6 +585,7 @@ namespace CatchTheTroublemaker
             lobbyPanel.gameObject.SetActive(target == GamePhase.Lobby);
             hudPanel.gameObject.SetActive(target == GamePhase.Playing);
             resultPanel.gameObject.SetActive(target == GamePhase.Result);
+            if (pausePanel != null) pausePanel.gameObject.SetActive(false);
             if (target != GamePhase.Playing)
             {
                 TouchX = TouchY = 0;
@@ -566,6 +598,19 @@ namespace CatchTheTroublemaker
                 if (sprintButtonRect != null) sprintButtonRect.gameObject.SetActive(true);
             }
             Toast("");
+        }
+
+        /// <summary>Shows the in-match Escape menu above the HUD and drops held touch input.</summary>
+        public void SetPauseVisible(bool visible)
+        {
+            EnsureBuilt();
+            if (pausePanel == null) return;
+            pausePanel.gameObject.SetActive(visible);
+            if (visible)
+            {
+                TouchX = TouchY = 0;
+                TouchSprint = false;
+            }
         }
 
         public void Toast(string message)
@@ -806,7 +851,7 @@ namespace CatchTheTroublemaker
 
         /// <summary>Rebuild after a language or contrast change, then redraw current data.</summary>
         public void Refresh(bool catalan, bool contrast, CTTState state, CTTLobby lobby,
-            CTTResult result, string playerId, GamePhase current)
+            CTTResult result, string playerId, GamePhase current, bool paused = false)
         {
             string serverUrl = CTTApi.ServerUrl;
             string playerName = PlayerName;
@@ -821,6 +866,7 @@ namespace CatchTheTroublemaker
             if (lobby != null) RenderLobby(lobby, playerId);
             if (state != null && current == GamePhase.Playing) UpdateHud(state, playerId, Spectating, lastGhostIn);
             if (result != null && current == GamePhase.Result) ShowResult(result);
+            SetPauseVisible(paused);
         }
 
         private void OnDestroy()

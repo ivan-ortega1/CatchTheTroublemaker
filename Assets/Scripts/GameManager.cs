@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace CatchTheTroublemaker
 {
@@ -56,6 +57,7 @@ namespace CatchTheTroublemaker
         private string lastDialogueKey;
         private bool localGrounded;
         private float ghostAt;
+        private bool paused;
 
         private void Awake()
         {
@@ -117,6 +119,9 @@ namespace CatchTheTroublemaker
             ui.DiscoveryRequested += () => FindLanServer(false);
             ui.P2pModeToggled += ToggleP2pMode;
             ui.P2pKindToggled += ToggleP2pKind;
+            ui.PauseRestartRequested += RestartFromPause;
+            ui.PauseMenuRequested += ExitToMenuFromPause;
+            ui.PauseQuitRequested += ExitDesktopFromPause;
 
             discovery = GetComponent<CttLanDiscovery>();
             if (discovery == null) discovery = gameObject.AddComponent<CttLanDiscovery>();
@@ -164,6 +169,22 @@ namespace CatchTheTroublemaker
 
         private void Update()
         {
+            // Escape quits from every menu phase and toggles the in-match menu while
+            // playing. The pause menu is local: it stops this client's input, but the
+            // authoritative server match keeps running underneath it.
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                if (Phase == GamePhase.Playing) SetPaused(!paused);
+                else QuitGame();
+                return;
+            }
+            if (paused)
+            {
+                // P2P broadcasts local input every frame, so keep it neutral while
+                // the menu is up instead of repeating the last held direction.
+                if (ui.P2pMode && p2p != null && p2p.IsActive) p2p.SetLocalInput(0, 0, false);
+                return;
+            }
             if (Phase != GamePhase.Playing || playerInput == null) return;
 
             // A grounded troublemaker stops driving a character at once, even during
@@ -200,6 +221,7 @@ namespace CatchTheTroublemaker
         private void SetPhase(GamePhase phase)
         {
             Phase = phase;
+            SetPaused(false);
             localGrounded = false;
             ghostAt = 0f;
             ui.ShowPhase(phase);
@@ -428,6 +450,50 @@ namespace CatchTheTroublemaker
             SetPhase(GamePhase.Home);
         }
 
+        /* ----------------------------- pause menu ----------------------------- */
+
+        private void SetPaused(bool value)
+        {
+            // The pause menu belongs to a live match only; phase changes always clear it.
+            if (value && Phase != GamePhase.Playing) value = false;
+            if (paused == value) return;
+            paused = value;
+            ui.SetPauseVisible(value);
+            board.SetCameraInputPaused(value);
+            if (value)
+            {
+                if (ui.P2pMode && p2p != null && p2p.IsActive) p2p.SetLocalInput(0, 0, false);
+                nextInputAt = 0f;
+            }
+        }
+
+        private void RestartFromPause()
+        {
+            if (!paused) return;
+            Rematch(); // SetPhase() closes the menu when the new match is ready.
+        }
+
+        private void ExitToMenuFromPause()
+        {
+            SetPaused(false);
+            LeaveRoom();
+        }
+
+        private void ExitDesktopFromPause()
+        {
+            SetPaused(false);
+            QuitGame();
+        }
+
+        private void QuitGame()
+        {
+#if UNITY_EDITOR
+            // A standalone build really exits; in the Editor Unity only logs it.
+            Debug.Log("[CTT] Quit requested (the Editor keeps running).");
+#endif
+            Application.Quit();
+        }
+
         /* ----------------------------- network callbacks ----------------------------- */
 
         /// <summary>Keeps the world art in sync with the family pair picked in the lobby.</summary>
@@ -600,7 +666,7 @@ namespace CatchTheTroublemaker
             Catalan = !Catalan;
             PlayerPrefs.SetInt(LangKey, Catalan ? 1 : 0);
             PlayerPrefs.Save();
-            ui.Refresh(Catalan, HighContrast, State, Lobby, Result, PlayerId, Phase);
+            ui.Refresh(Catalan, HighContrast, State, Lobby, Result, PlayerId, Phase, paused);
         }
 
         private void ToggleContrast()
@@ -609,7 +675,7 @@ namespace CatchTheTroublemaker
             PlayerPrefs.SetInt(ContrastKey, HighContrast ? 1 : 0);
             PlayerPrefs.Save();
             board.SetHighContrast(HighContrast);
-            ui.Refresh(Catalan, HighContrast, State, Lobby, Result, PlayerId, Phase);
+            ui.Refresh(Catalan, HighContrast, State, Lobby, Result, PlayerId, Phase, paused);
         }
 
         private static string Sanitize(string value)

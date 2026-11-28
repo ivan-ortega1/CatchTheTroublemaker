@@ -620,3 +620,37 @@ La mateixa prova de navegador descrita a la secció 16 va mesurar **2507,5 ms**
 entre «Ghost camera in» i l'aparició del rètol, sense nous `POST /input` ni errors
 de consola. Roslyn i `npm test` es van tornar a executar sense canvis respecte al
 resultat anterior.
+
+---
+
+## 18. Menú d'Escape al client d'escriptori
+
+> "Can you add an option to exit the game? When you're in menu, when you hit escape the game closes, but when you hit escape while in a game, it shows a menu asking you to restart the match, exit to menu, or exit to desktop (AKA closing the game)"
+
+### Decisió
+
+L'usuari va triar explícitament **només Unity**: el navegador no rep cap canvi.
+El tancament real només existeix en una build d'escriptori; a l'Editor, `Application.Quit()`
+només ho registra.
+
+### Canvis
+
+- `GameManager.Update()` detecta `Keyboard.current.escapeKey.wasPressedThisFrame`.
+  Fora de `Playing` crida `Application.Quit()`; dins de `Playing` obre/tanca el
+  menú amb `SetPaused()`.
+- El menú és una capa nova de `UIManager` (`PausePanel`) construïda després del HUD
+  però abans del *toast*, així els errors de reinici (per exemple, no ser l'amfitrió)
+  continuen sent visibles. Botons CA/EN: `RESTART MATCH`, `EXIT TO MENU` i
+  `EXIT TO DESKTOP`, més la pista «Esc: resume».
+- `SetPaused()` atura l'input local (inclòs l'input neutre P2P), bloqueja el pad
+  tàctil i crida `BoardRenderer.SetCameraInputPaused()` perquè el ghost no es mogui
+  darrere del menú. La partida del servidor **no** es posa en pausa: el menú és local.
+- `ShowPhase()` i `Refresh()` netegen/restauren la visibilitat del menú, de manera
+  que rebre un resultat o canviar d'idioma/contrast no deixa una capa fantasma.
+- `Restart match` reutilitza `Rematch()`. En servidor, `EnterGame()` tanca el menú
+  quan arriba el nou snapshot; en P2P passa el mateix amb l'estat local.
+
+### Verificació
+
+Roslyn d'Unity 6: **0 errors** (només els avisos `FindFirstObjectByType` ja coneguts).
+No cal cap prova de navegador perquè `public/app.js` no es toca.
